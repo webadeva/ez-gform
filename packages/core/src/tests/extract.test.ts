@@ -39,6 +39,36 @@ describe("extractPublicLoadData", () => {
     const data = extractPublicLoadData(html);
     expect(data).toEqual([1, "a ] weird [ string", [2, 3]]);
   });
+
+  it("throws ParseError when the assignment is not an array literal", () => {
+    expect(() => {
+      return extractPublicLoadData('var FB_PUBLIC_LOAD_DATA_ = {"a":1};');
+    }).toThrow(/expected array literal/);
+    expect(() => {
+      return extractPublicLoadData("var FB_PUBLIC_LOAD_DATA_ =");
+    }).toThrow(ParseError);
+  });
+
+  it("throws ParseError carrying the JSON.parse message when the literal is invalid JSON", () => {
+    let caught: unknown;
+    try {
+      extractPublicLoadData("var FB_PUBLIC_LOAD_DATA_ = [1,];");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ParseError);
+    expect((caught as ParseError).message).toMatch(
+      /failed to JSON\.parse the extracted FB_PUBLIC_LOAD_DATA_ literal: .+/,
+    );
+  });
+
+  // TODO(bug): ParseError should carry the original JSON.parse SyntaxError as its cause (extract.ts currently drops it).
+
+  it("respects escaped quotes and escaped backslashes inside strings", () => {
+    const html =
+      'var FB_PUBLIC_LOAD_DATA_ = ["say \\"]\\" now", "back\\\\", [1]];</script>';
+    expect(extractPublicLoadData(html)).toEqual(['say "]" now', "back\\", [1]]);
+  });
 });
 
 describe("extractFbzx", () => {
