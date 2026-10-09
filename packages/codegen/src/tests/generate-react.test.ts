@@ -32,6 +32,15 @@ describe("generateReactComponent", () => {
     }, 20000);
   }
 
+  it("imports everything from @ez-gform/react only (core is a transitive dep)", () => {
+    const schema = loadFixtureSchema("all-question-types");
+    const source = generateReactComponent(schema);
+    expect(source).toContain(
+      'import type { FormSchema } from "@ez-gform/react";',
+    );
+    expect(source).not.toContain("@ez-gform/core");
+  });
+
   it("renders a disabled note for file_upload questions", () => {
     const schema = loadFixtureSchema("file-upload");
     const source = generateReactComponent(schema);

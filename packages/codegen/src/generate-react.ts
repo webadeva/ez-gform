@@ -336,7 +336,7 @@ export const generateReactComponent = (
     ? `${schemaJson} as const satisfies FormSchema`
     : schemaJson;
   const typeImport = typescript
-    ? `import type { FormSchema } from "@ez-gform/core";\n`
+    ? `import type { FormSchema } from "@ez-gform/react";\n`
     : "";
 
   return `${typeImport}import { useGoogleForm } from "@ez-gform/react";
