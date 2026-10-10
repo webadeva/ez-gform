@@ -17,25 +17,17 @@ const withNewline = (output: string): string => {
   return output.endsWith("\n") ? output : `${output}\n`;
 };
 
-const PLACEHOLDER = "FBZX";
-
-// fbzx is a per-request token, so each CLI run (and each fetch) gets a new one,
-// and generated types/react/html embed it. Mask it on both sides before comparing.
-const maskFbzx = (output: string): string => {
-  return output
-    .replace(/("fbzx": ")[^"]*(")/g, `$1${PLACEHOLDER}$2`)
-    .replace(/(name="fbzx" value=")[^"]*(")/g, `$1${PLACEHOLDER}$2`);
-};
-
 const withoutFbzx = (schema: FormSchema): Omit<FormSchema, "fbzx"> => {
   const copy: Partial<FormSchema> = { ...schema };
   delete copy.fbzx;
   return copy as Omit<FormSchema, "fbzx">;
 };
 
+// fbzx is a per-request token, so the CLI's fetch and the one behind cliSchema
+// get different values; generators omit it (html posts a constant placeholder),
+// so exact equality also proves no per-request token leaks into the output.
 const expectMatches = (stdout: string, generated: string): void => {
-  expect(maskFbzx(stdout)).toContain(PLACEHOLDER);
-  expect(maskFbzx(stdout)).toBe(maskFbzx(withNewline(generated)));
+  expect(stdout).toBe(withNewline(generated));
 };
 
 describe("ez-gform CLI against the live form", () => {

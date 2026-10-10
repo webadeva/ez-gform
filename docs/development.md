@@ -55,7 +55,7 @@ pnpm --filter @ez-gform/core test  # one package
 pnpm test:e2e                      # live network e2e (builds first via turbo)
 ```
 
-`test` is `vitest run --coverage` in core, codegen, react and docs, so the
+`test` is `vitest run --coverage` in core, codegen, react, docs and cli, so the
 coverage thresholds in each `vitest.config.ts` fail the run when missed.
 
 ### Offline guard
@@ -76,21 +76,25 @@ Lines / branches / functions / statements, in percent:
 | codegen | 98    | 95       | 94        | 98         |
 | react   | 98    | 95       | 100       | 98         |
 | docs    | 98    | 94       | 100       | 98         |
+| cli     | 100   | 96       | 100       | 100        |
 
-`cli` is exempt: it is tested through subprocesses and v8 coverage cannot see
-child processes, so it reads 0% until the CLI is split into importable
-modules. `types` is exempt because it only contains types.
+`cli` coverage comes from the in-process tests of `src/main.ts`
+(`main(argv, deps)` with an injected `fetch`); the bin entry `src/cli.ts` is
+excluded because only the subprocess tests run it, and v8 cannot see child
+processes. The CLI aborts the form fetch after 15 s (`--timeout <ms>`
+overrides it). `types` is exempt because it only contains types.
 
 ### Live e2e
 
 `pnpm test:e2e` runs against a project-owned Google Form
 (`https://docs.google.com/forms/d/e/1FAIpQLScXpdCnyzcv0h5_3giJaB9vP_00UIXggzt4UAfMamwPApnINw/viewform`).
-It needs network access. Each run submits two responses (one via core
-`submitForm` in `cors` mode, one via the built CLI `submit`) and verifies both
-in the linked response sheet's anonymous CSV export, so two rows land in the
-sheet every run. The "Short answer required" column carries a marker of the
-form `e2e-core <ISO timestamp> <random id>` (core submission) or
-`e2e-cli <ISO timestamp> <random id>` (CLI submission). It also packs and installs the five
+It needs network access. Each run submits three responses (one via core
+`submitForm` in `cors` mode, one via core with a placeholder fbzx, one via the
+built CLI `submit`) and verifies all three in the linked response sheet's
+anonymous CSV export, so three rows land in the sheet every run. The "Short answer required" column carries a marker of the
+form `e2e-core <ISO timestamp> <random id>` (core submission),
+`e2e-placeholder-fbzx <ISO timestamp> <random id>` (proves multi-page
+submissions with a non-Google fbzx are accepted) or `e2e-cli <ISO timestamp> <random id>` (CLI submission). It also packs and installs the five
 publishable packages in a temp project and runs `next start` for the docs app
 to check `/api/schema`, `/playground` and `/`. The turbo task depends on
 `^build` and `build`, so a manual `pnpm turbo run build` first is not needed.

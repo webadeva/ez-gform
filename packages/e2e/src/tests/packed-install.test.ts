@@ -137,10 +137,10 @@ describe("packed tarball install", () => {
     const version = await run(bin, ["--version"], app);
     expect(version.stdout.trim()).toBe(workspaceVersion);
 
-    // The CLI requires a positional form arg even with --json-input; it is ignored.
+    // No positional form arg is needed with --json-input.
     const out = await run(
       bin,
-      ["unused", "--json-input", FIXTURE_JSON_PATH, "--format", "json"],
+      ["--json-input", FIXTURE_JSON_PATH, "--format", "json"],
       app,
     );
     expect(JSON.parse(out.stdout)).toEqual(loadFixtureSchema());

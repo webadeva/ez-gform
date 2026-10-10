@@ -319,6 +319,14 @@ describe("ez-gform CLI", () => {
     });
   });
 
+  describe("--json-input without a positional", () => {
+    it("generates from the file alone", async () => {
+      const { stdout, code } = await run(["--json-input", htmlFixturePath]);
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout) as unknown).toEqual(schemaFromHtmlFixture());
+    });
+  });
+
   describe("--json-input errors", () => {
     let dir: string;
     beforeEach(() => {
@@ -573,13 +581,4 @@ describe("ez-gform CLI", () => {
       });
     }
   });
-
-  // The paths below are untestable until cli.ts is split so main() does not
-  // run at import time (cli.ts:274-279) and fetch/exit are injectable.
-  // TODO(untestable until cli split): fetchSchema must report a network error as "Failed to fetch <url>: <cause>" and exit 2 (cli.ts:76-83).
-  // TODO(untestable until cli split): fetchSchema must report a 401 or an accounts.google.com redirect as the sign-in error and exit 2 (cli.ts:85-87).
-  // TODO(untestable until cli split): fetchSchema must report a non-ok HTTP status as "Failed to fetch <url>: HTTP <status>" and exit 2 (cli.ts:89-93).
-  // TODO(untestable until cli split): fetchSchema must report unparseable fetched HTML as "Failed to parse form HTML: <cause>" and exit 2 (cli.ts:96-102).
-  // TODO(untestable until cli split): submit with valid data must call submitForm, print the result as JSON and exit 0 for sent/ok, 2 for error (cli.ts:249-252).
-  // TODO(bug): a fetch that never responds should time out and be reported as a fetch error instead of hanging; no timeout exists (cli.ts:76).
 });

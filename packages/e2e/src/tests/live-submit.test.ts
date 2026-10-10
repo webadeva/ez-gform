@@ -16,6 +16,8 @@ import { buildVariant } from "../helpers/submit-values.js";
 
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 90_000;
+// Same constant multi-page generated HTML posts (packages/codegen).
+const PLACEHOLDER_FBZX = "-1000000000000000000";
 const MARKER_COLUMN = "Short answer required";
 const TIMESTAMP_FORMAT = /^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2}$/;
 
@@ -67,6 +69,21 @@ describe("live submission, verified in the response sheet", () => {
   it("core submitForm (cors) lands every answer in the sheet", async () => {
     const schema = await fetchLiveSchema();
     const marker = makeMarker("core");
+    const { values, expected } = buildVariant(schema, marker, "a");
+
+    const result = await submitForm(LIVE_FORM_ID, values, {
+      schema,
+      mode: "cors",
+    });
+    expect(result).toEqual({ status: "ok", httpStatus: 200 });
+
+    expectRowMatches(await pollForRow(marker), expected);
+  });
+
+  it("core submitForm with a placeholder fbzx is accepted by Google", async () => {
+    const liveSchema = await fetchLiveSchema();
+    const schema = { ...liveSchema, fbzx: PLACEHOLDER_FBZX };
+    const marker = makeMarker("placeholder-fbzx");
     const { values, expected } = buildVariant(schema, marker, "a");
 
     const result = await submitForm(LIVE_FORM_ID, values, {
