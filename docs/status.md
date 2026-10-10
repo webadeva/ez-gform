@@ -5,11 +5,11 @@ Keep the whole file under 40 lines. Timestamps: ISO 8601 with offset, from `date
 
 # Status
 
-Updated: 2026-10-10T10:31:53+05:30
+Updated: 2026-10-10T19:34:52+05:30
 
 ## Now
 
-- Branch `s2oct-fixing-test-cases`, 20 commits ahead of `main` (after this status commit), not pushed. Working tree clean.
+- Branch `s2oct-fixing-test-cases`, 21 commits ahead of `main`, pushed; PR open, not pushed. Working tree clean.
 - Test rebuild done: 745 offline unit/integration tests across types, core, react, codegen, cli, docs (was 133); coverage thresholds enforced by `pnpm test` (core/codegen 100 on every metric, react 100/98, docs 100/96, cli 100/96).
 - Live e2e in `packages/e2e` (`pnpm test:e2e`, 23 tests): live form parse, three real submissions verified in the response sheet, CLI against the live form, packed-tarball install, docs app via `next start`. Three rows land in the sheet per run.
 - Every bug the tests found is fixed and committed (core, react/docs, codegen, cli split, Duration seconds, open items). `docs/TODO.md` holds one open item (jest-dom typing bridge) and four accepted unreachable guards.
@@ -21,7 +21,7 @@ Updated: 2026-10-10T10:31:53+05:30
 
 ## Next up
 
-1. Push the branch, open a PR to `main`, watch the first CI e2e run on GitHub (not yet verified on a runner).
+1. Merge the PR once reviewed; CI run 38057947600 passed both jobs (ci 26 tasks, e2e 23 live tests, 1m35s).
 2. Consider GitHub branch protection on `main` requiring the `ci` and `e2e` jobs; the pre-push hook only guards local pushes.
 
 ## Decisions taken without asking
