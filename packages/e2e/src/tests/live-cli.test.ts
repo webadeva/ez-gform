@@ -10,7 +10,7 @@ import {
   LIVE_FORM_URL,
   SIGNIN_FORM_URL,
   fetchLiveSchema,
-  runCli,
+  runCliLive,
 } from "../helpers/live.js";
 
 const withNewline = (output: string): string => {
@@ -37,7 +37,7 @@ describe("ez-gform CLI against the live form", () => {
 
   beforeAll(async () => {
     live = await fetchLiveSchema();
-    const result = await runCli([LIVE_FORM_URL, "--format", "json"]);
+    const result = await runCliLive([LIVE_FORM_URL, "--format", "json"]);
     expect(result.code).toBe(0);
     cliSchema = JSON.parse(result.stdout) as FormSchema;
   });
@@ -48,13 +48,13 @@ describe("ez-gform CLI against the live form", () => {
   });
 
   it("--format types matches generateTypes on the CLI schema", async () => {
-    const result = await runCli([LIVE_FORM_URL, "--format", "types"]);
+    const result = await runCliLive([LIVE_FORM_URL, "--format", "types"]);
     expect(result.code).toBe(0);
     expectMatches(result.stdout, generateTypes(cliSchema, { name: undefined }));
   });
 
   it("--format react matches generateReactComponent on the CLI schema", async () => {
-    const result = await runCli([LIVE_FORM_URL, "--format", "react"]);
+    const result = await runCliLive([LIVE_FORM_URL, "--format", "react"]);
     expect(result.code).toBe(0);
     expectMatches(
       result.stdout,
@@ -63,20 +63,20 @@ describe("ez-gform CLI against the live form", () => {
   });
 
   it("--format html matches generateHtmlForm on the CLI schema", async () => {
-    const result = await runCli([LIVE_FORM_URL, "--format", "html"]);
+    const result = await runCliLive([LIVE_FORM_URL, "--format", "html"]);
     expect(result.code).toBe(0);
     expectMatches(result.stdout, generateHtmlForm(cliSchema));
   });
 
   it("exits 2 with the sign-in message for a restricted form", async () => {
-    const result = await runCli([SIGNIN_FORM_URL]);
+    const result = await runCliLive([SIGNIN_FORM_URL]);
     expect(result.code).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("This form requires sign-in");
   });
 
   it("exits 2 with an HTTP 404 message for a non-existent form", async () => {
-    const result = await runCli([BOGUS_FORM_ID]);
+    const result = await runCliLive([BOGUS_FORM_ID]);
     expect(result.code).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain(`/forms/d/e/${BOGUS_FORM_ID}/viewform`);

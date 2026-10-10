@@ -24,8 +24,61 @@ export const USER_AGENT = "Mozilla/5.0";
 export const FIXTURE_JSON_PATH = `${REPO_ROOT}packages/core/src/__fixtures__/all-question-types.json`;
 export const CLI_PATH = `${REPO_ROOT}packages/cli/dist/cli.js`;
 
+const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+};
+
+/**
+ * `fetch` that retries when the connection itself fails (Node rejects with
+ * "fetch failed" whose cause is ETIMEDOUT / ENETUNREACH / ECONNRESET ...).
+ * HTTP responses of any status are returned as-is; only rejections are
+ * retried. CI runners occasionally lose one connection to Google.
+ */
+export const fetchWithRetry = async (
+  url: string,
+  init?: RequestInit,
+  attempts = 3,
+): Promise<Response> => {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await sleep(2000 * attempt);
+    }
+  }
+  throw lastError;
+};
+
+/** CLI exit 2 with a network-level fetch failure (no HTTP status in the message). */
+const isTransientCliFailure = (result: CliResult): boolean => {
+  return (
+    result.code === 2 &&
+    result.stderr.includes("Failed to fetch") &&
+    !/HTTP \d+/.test(result.stderr) &&
+    !/sign-in/i.test(result.stderr)
+  );
+};
+
+/** `runCli` for commands that reach Google: retries transient fetch failures. */
+export const runCliLive = async (
+  args: string[],
+  attempts = 3,
+): Promise<CliResult> => {
+  let result = await runCli(args);
+  for (let attempt = 1; attempt < attempts; attempt += 1) {
+    if (!isTransientCliFailure(result)) break;
+    await sleep(2000 * attempt);
+    result = await runCli(args);
+  }
+  return result;
+};
+
 export const fetchLiveHtml = async (): Promise<string> => {
-  const res = await fetch(LIVE_FORM_URL, {
+  const res = await fetchWithRetry(LIVE_FORM_URL, {
     headers: { "User-Agent": USER_AGENT },
   });
   if (res.status !== 200) {

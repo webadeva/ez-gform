@@ -128,7 +128,15 @@ describe("docs app (next start)", () => {
   });
 
   it("GET /api/schema returns the live schema for a public form", async () => {
-    const res = await fetch(schemaUrl(LIVE_FORM_URL));
+    // The route answers 502 when its own fetch to Google fails; retry that
+    // once or twice so a transient runner connection loss is not a failure.
+    let res = await fetch(schemaUrl(LIVE_FORM_URL));
+    for (let attempt = 1; attempt < 3 && res.status === 502; attempt += 1) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 2000 * attempt);
+      });
+      res = await fetch(schemaUrl(LIVE_FORM_URL));
+    }
     expect(res.status).toBe(200);
     const body = (await res.json()) as { schema: FormSchema };
     expect(withoutFbzx(body.schema)).toEqual(withoutFbzx(liveSchema));

@@ -6,6 +6,7 @@ import { parseCsvRecords } from "../helpers/csv.js";
 import {
   CLI_PATH,
   fetchLiveSchema,
+  fetchWithRetry,
   LIVE_FORM_ID,
   LIVE_FORM_URL,
   runCli,
@@ -35,7 +36,7 @@ const makeMarker = (label: string): string => {
 const pollForRow = async (marker: string): Promise<Record<string, string>> => {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   for (;;) {
-    const res = await fetch(`${SHEET_CSV_URL}&_=${Date.now()}`, {
+    const res = await fetchWithRetry(`${SHEET_CSV_URL}&_=${Date.now()}`, {
       headers: { "User-Agent": USER_AGENT },
     });
     expect(res.status).toBe(200);
