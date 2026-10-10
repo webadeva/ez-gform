@@ -966,6 +966,47 @@ describe("encodeValues and validateValues — duration seconds", () => {
       validateValues({ [duration.entryId]: { hour: 1, minute: 2 } }, only),
     ).toEqual({ ok: true });
   });
+
+  const requiredDuration = () => {
+    const schema = parseFormData(loadFixture("all-question-types"));
+    const duration = schema.questions.find((x) => {
+      return x.title === "Duration";
+    });
+    if (!duration) throw new Error("fixture question missing: Duration");
+    return {
+      id: duration.entryId,
+      only: { ...schema, questions: [{ ...duration, required: true }] },
+    };
+  };
+
+  it("hour 1, minute 2, second 75 encodes _second=75 as given (core does not clamp) and validates", () => {
+    const { id, only } = requiredDuration();
+    const value = { hour: 1, minute: 2, second: 75 };
+    expect(encodeValues({ [id]: value }).get(`${id}_second`)).toBe("75");
+    expect(validateValues({ [id]: value }, only)).toEqual({ ok: true });
+  });
+
+  it("second alone on a required duration is incomplete and reported missing", () => {
+    const { id, only } = requiredDuration();
+    const result = validateValues(
+      { [id]: { second: 30 } as unknown as FieldValue },
+      only,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(
+        result.errors.map((e) => {
+          return e.entryId;
+        }),
+      ).toEqual([id]);
+  });
+
+  it("hour 1, minute 2, second 5 encodes _second=05", () => {
+    const params = encodeValues({
+      "entry.1": { hour: 1, minute: 2, second: 5 },
+    });
+    expect(params.get("entry.1_second")).toBe("05");
+  });
 });
 
 describe("encodeValues — time with an undefined part", () => {

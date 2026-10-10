@@ -5,14 +5,14 @@ Keep the whole file under 40 lines. Timestamps: ISO 8601 with offset, from `date
 
 # Status
 
-Updated: 2026-10-10T10:15:41+05:30
+Updated: 2026-10-10T10:31:53+05:30
 
 ## Now
 
-- Branch `s2oct-fixing-test-cases`, 17 commits ahead of `main`, not pushed. Working tree clean.
-- Test rebuild done: 736 offline unit/integration tests across types, core, react, codegen, cli, docs (was 133); coverage thresholds enforced by `pnpm test` (core/codegen 100 on every metric, react 100/98, docs 100/96, cli 100/96).
+- Branch `s2oct-fixing-test-cases`, 20 commits ahead of `main`, not pushed. Working tree clean.
+- Test rebuild done: 745 offline unit/integration tests across types, core, react, codegen, cli, docs (was 133); coverage thresholds enforced by `pnpm test` (core/codegen 100 on every metric, react 100/98, docs 100/96, cli 100/96).
 - Live e2e in `packages/e2e` (`pnpm test:e2e`, 23 tests): live form parse, three real submissions verified in the response sheet, CLI against the live form, packed-tarball install, docs app via `next start`. Three rows land in the sheet per run.
-- Every bug the tests found is fixed and committed (core, react/docs, codegen, cli split, Duration seconds). `docs/TODO.md` holds the five remaining open items.
+- Every bug the tests found is fixed and committed (core, react/docs, codegen, cli split, Duration seconds, open items). `docs/TODO.md` holds one open item (jest-dom typing bridge) and four accepted unreachable guards.
 - Husky + commitlint in place: `commit-msg` lints, `pre-push` refuses `main` and runs `pnpm test`. CI lints PR commits and runs the e2e job on pull requests; release stays offline.
 
 ## Blocked
@@ -22,8 +22,7 @@ Updated: 2026-10-10T10:15:41+05:30
 ## Next up
 
 1. Push the branch, open a PR to `main`, watch the first CI e2e run on GitHub (not yet verified on a runner).
-2. Decide the open items in `docs/TODO.md` (jest-dom typing bridge, generated-form duration zero-fill, out-of-range seconds tests, `--timeout -5` parse quirk, unreachable guards).
-3. Consider GitHub branch protection on `main` requiring the `ci` and `e2e` jobs; the pre-push hook only guards local pushes.
+2. Consider GitHub branch protection on `main` requiring the `ci` and `e2e` jobs; the pre-push hook only guards local pushes.
 
 ## Decisions taken without asking
 

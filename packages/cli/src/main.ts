@@ -353,7 +353,18 @@ export const main = async (
     return 0;
   }
 
-  return argv[0] === "submit"
-    ? runSubmit(argv.slice(1), deps)
-    : runGenerate(argv, deps);
+  try {
+    return await (argv[0] === "submit"
+      ? runSubmit(argv.slice(1), deps)
+      : runGenerate(argv, deps));
+  } catch (error) {
+    if (
+      error instanceof TypeError &&
+      (error as NodeJS.ErrnoException).code?.startsWith("ERR_PARSE_ARGS_")
+    ) {
+      deps.stderr(`${error.message}\n\n${USAGE}`);
+      return 1;
+    }
+    throw error;
+  }
 };

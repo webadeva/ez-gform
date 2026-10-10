@@ -238,10 +238,18 @@ const renderDate = (question: Question): string => {
       />`;
 };
 
-const renderDuration = (question: Question): string => {
+const renderDuration = (question: Question, typescript: boolean): string => {
   const entryId = q(question.entryId);
   const required = question.required ? "true" : "false";
   const isObject = `typeof current === "object" && current !== null && !Array.isArray(current)`;
+  // Parts stay undefined until typed, so a half-typed duration is rejected by
+  // validation instead of submitting zeros; TimeValue needs hour/minute, hence the casts.
+  const baseCast = typescript
+    ? ' as Partial<Record<"hour" | "minute" | "second", number>>'
+    : "";
+  const valueCast = typescript
+    ? " as { hour: number; minute: number; second?: number }"
+    : "";
   const part = (key: string, label: string, max: number): string => {
     return `<input
         type="number"
@@ -251,8 +259,10 @@ const renderDuration = (question: Question): string => {
         required={${required}}
         onChange={(e) => {
           const current = form.values[${entryId}];
-          const time = ${isObject} && "hour" in current && "minute" in current ? { hour: Number(current.hour), minute: Number(current.minute), second: Number("second" in current ? (current.second ?? 0) : 0) } : { hour: 0, minute: 0, second: 0 };
-          form.setValue(${entryId}, { ...time, ${key}: Number(e.target.value) });
+          const base = (${isObject} ? current : {})${baseCast};
+          const merged = { ...base, ${key}: e.target.value === "" ? undefined : Number(e.target.value) };
+          const allEmpty = Object.values(merged).every((v) => v === undefined);
+          form.setValue(${entryId}, allEmpty ? undefined : (merged${valueCast}));
         }}
       />`;
   };
@@ -263,8 +273,8 @@ const renderDuration = (question: Question): string => {
   ].join("\n      ");
 };
 
-const renderTime = (question: Question): string => {
-  if (question.time?.isDuration) return renderDuration(question);
+const renderTime = (question: Question, typescript: boolean): string => {
+  if (question.time?.isDuration) return renderDuration(question, typescript);
   const entryId = q(question.entryId);
   return `<input
         type="time"
@@ -278,7 +288,7 @@ const renderTime = (question: Question): string => {
       />`;
 };
 
-const renderQuestion = (question: Question): string => {
+const renderQuestion = (question: Question, typescript: boolean): string => {
   const label = `<label>${jsxEscape(question.title)}${
     question.required ? " *" : ""
   }</label>`;
@@ -314,7 +324,7 @@ const renderQuestion = (question: Question): string => {
       field = renderDate(question);
       break;
     case "time":
-      field = renderTime(question);
+      field = renderTime(question, typescript);
       break;
     case "file_upload":
       field = `<p>"${jsxEscape(question.title)}" is a file upload question and is not supported by Google Forms submission without sign-in.</p>`;
@@ -332,6 +342,7 @@ const renderQuestion = (question: Question): string => {
 const renderSection = (
   section: Section,
   questionsById: Map<string, Question>,
+  typescript: boolean,
 ): string => {
   const heading = section.title
     ? `    <h2>${jsxEscape(section.title)}</h2>\n`
@@ -346,7 +357,9 @@ const renderSection = (
     .filter((question): question is Question => {
       return question !== undefined;
     })
-    .map(renderQuestion)
+    .map((question) => {
+      return renderQuestion(question, typescript);
+    })
     .join("\n");
   return `${heading}${description}${body}`;
 };
@@ -378,10 +391,14 @@ export const generateReactComponent = (
     (schema.sections[0]?.title && schema.sections[0].title.length > 0)
       ? schema.sections
           .map((section) => {
-            return renderSection(section, questionsById);
+            return renderSection(section, questionsById, typescript);
           })
           .join("\n")
-      : schema.questions.map(renderQuestion).join("\n");
+      : schema.questions
+          .map((question) => {
+            return renderQuestion(question, typescript);
+          })
+          .join("\n");
 
   const schemaDeclaration = typescript
     ? `${schemaJson} as const satisfies FormSchema`

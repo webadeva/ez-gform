@@ -8,6 +8,10 @@ import {
   fixtureSchema as schema,
 } from "virtual:generated-form/all-question-types.tsx";
 import { GeneratedForm as FileUploadForm } from "virtual:generated-form/file-upload.tsx";
+import {
+  GeneratedForm as RequiredDurationForm,
+  fixtureSchema as durationSchema,
+} from "virtual:generated-form/required-duration.tsx";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../__test-utils__/dom-setup.js";
 
@@ -242,6 +246,75 @@ describe("generated React component, rendered against the real @ez-gform/react",
       ["entry.425514760", "Apple"],
       ["entry.425514760", "Cherry"],
     ]);
+  });
+
+  it("leaves untouched duration parts empty, fails a required duration, and matches core when complete", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch();
+    render(<RequiredDurationForm />);
+
+    const form = screen
+      .getByRole("button", { name: "Submit" })
+      .closest("form")!;
+    form.noValidate = true;
+    await user.type(screen.getByLabelText("Seconds"), "45");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(await screen.findByText("Status: error")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Clearing the only typed part empties the whole value again.
+    await user.clear(screen.getByLabelText("Seconds"));
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(
+      screen.getByText(/Missing required answer for question "Duration"/),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Hours"), "1");
+    await user.type(screen.getByLabelText("Minutes"), "30");
+    await user.type(screen.getByLabelText("Seconds"), "45");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(await screen.findByText("Status: sent")).toBeInTheDocument();
+    const [, init] = fetchMock.mock.calls[0]!;
+    const sent = new URLSearchParams(
+      typeof init?.body === "string" ? init.body : "",
+    );
+    const reference = buildSubmitBody(
+      durationSchema.formId,
+      { "entry.1454464036": { hour: 1, minute: 30, second: 45 } },
+      durationSchema,
+    );
+    for (const params of [sent, reference]) {
+      params.delete("fbzx");
+      params.delete("partialResponse");
+    }
+    expect(sortedPairs(sent)).toEqual(sortedPairs(reference));
+  });
+
+  it("submits a seconds-only optional duration without hour or minute", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch();
+    render(<AllTypesForm />);
+
+    const form = screen
+      .getByRole("button", { name: "Submit" })
+      .closest("form")!;
+    form.noValidate = true;
+    await user.type(
+      within(block("Short answer required")).getByRole("textbox"),
+      "Hi",
+    );
+    await user.type(within(block("Duration")).getByLabelText("Seconds"), "45");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await screen.findByText(/Status: (sent|error)/);
+    for (const [, init] of fetchMock.mock.calls) {
+      const keys = [
+        ...new URLSearchParams(
+          typeof init?.body === "string" ? init.body : "",
+        ).keys(),
+      ];
+      expect(keys).not.toContain("entry.1454464036_hour");
+      expect(keys).not.toContain("entry.1454464036_minute");
+    }
   });
 
   it("blocks the submit and lists the errors when required fields are empty", async () => {

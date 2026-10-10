@@ -9,7 +9,26 @@ const fixturesDir = resolve(process.cwd(), "../core/src/__fixtures__");
 
 export const FIXTURE_SLUGS = ["all-question-types", "file-upload"] as const;
 
+/**
+ * Derived slug: the all-question-types fixture reduced to its duration
+ * question, made required, so tests can submit and validate it alone.
+ */
+const REQUIRED_DURATION_SLUG = "required-duration";
+
 export const loadFixtureSchema = (slug: string): FormSchema => {
+  if (slug === REQUIRED_DURATION_SLUG) {
+    const base = loadFixtureSchema("all-question-types");
+    return {
+      ...base,
+      questions: base.questions
+        .filter((question) => {
+          return question.time?.isDuration === true;
+        })
+        .map((question) => {
+          return { ...question, required: true };
+        }),
+    };
+  }
   const raw = JSON.parse(
     readFileSync(resolve(fixturesDir, `${slug}.json`), "utf8"),
   ) as unknown;

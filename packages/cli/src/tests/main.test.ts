@@ -291,15 +291,27 @@ describe("main: help and version", () => {
     expect(stdout).toContain("Usage:");
   });
 
-  it("rejects on an unknown flag (generate)", async () => {
-    await expect(runMain([FORM_ID, "--bogus"])).rejects.toThrow(/--bogus/);
-  });
-
-  it("rejects on an unknown flag (submit)", async () => {
-    await expect(runMain(["submit", FORM_ID, "--bogus"])).rejects.toThrow(
-      /--bogus/,
-    );
-  });
+  it.each([
+    ["generate", [FORM_ID, "--bogus"], /--bogus/],
+    ["submit", ["submit", FORM_ID, "--bogus"], /--bogus/],
+    ["generate missing value", [FORM_ID, "--format"], /--format/],
+    ["submit missing value", ["submit", FORM_ID, "--data"], /--data/],
+    ["generate ambiguous value", [FORM_ID, "--timeout", "-5"], /--timeout/],
+    [
+      "submit ambiguous value",
+      ["submit", FORM_ID, "--timeout", "-5"],
+      /--timeout/,
+    ],
+  ])(
+    "prints the message and usage, exit 1, on bad option (%s)",
+    async (_n, argv, re) => {
+      const { code, stdout, stderr } = await runMain(argv);
+      expect(code).toBe(1);
+      expect(stdout).toBe("");
+      expect(stderr).toMatch(re);
+      expect(stderr).toContain("Usage:");
+    },
+  );
 });
 
 describe("main: submit", () => {

@@ -111,6 +111,11 @@ to check `/api/schema`, `/playground` and `/`. The turbo task depends on
   `h:mm:ss AM/PM`; duration `h:mm:ss`. A Google change to any of these breaks
   the live-submit e2e, not the library.
 - `_second` is accepted for Duration questions and ignored for Time of day.
+  Core does not clamp it (`second: 75` is sent as `_second=75`); a Duration
+  with only seconds filled is incomplete and fails a required check. Generated
+  React forms and the docs form both leave untouched duration parts empty.
+- CLI: any bad option (unknown flag, missing or ambiguous value such as
+  `--timeout -5`) prints the parser message plus usage to stderr and exits 1.
 - Generated HTML cannot express "at least one" for checkboxes and checkbox
   grids, so required ones only show the asterisk. An untouched optional
   dropdown posts `entry.N=` (empty), which Google ignores. Multi-page HTML

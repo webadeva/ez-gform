@@ -330,6 +330,10 @@ describe("generateReactComponent", () => {
       expect(jsxBody(duration)).toContain('aria-label="Minutes"');
       expect(jsxBody(duration)).toContain('aria-label="Seconds"');
       expect(jsxBody(duration)).toContain("second:");
+      expect(jsxBody(duration)).not.toContain("hour: 0");
+      expect(jsxBody(duration)).not.toContain("?? 0");
+      expect(jsxBody(duration)).toContain('=== "" ? undefined : Number(');
+      expect(jsxBody(duration)).toContain("allEmpty ? undefined");
       const required = generateReactComponent(
         schemaOf([
           question({
