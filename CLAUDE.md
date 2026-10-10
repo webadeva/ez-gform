@@ -27,4 +27,5 @@ Invoke the `gform-internals` skill before touching encoding, parsing, or submit 
 - Libraries build with tsup to ESM + CJS + d.ts; `@ez-gform/core` must stay zero-runtime-dependency and browser/Node neutral (no DOM access outside `packages/react`).
 - Tests are Vitest, `*.test.ts(x)` in each package's `src/tests/` folder (not colocated with the source).
 - Commits: Conventional Commits, single author, no `Co-Authored-By` trailers; the `major:`/`minor:`/`patch:` prefix also controls the release version bump (see Commands).
+- Husky hooks: `commit-msg` runs commitlint (`commitlint.config.mjs`, 100-char header); `pre-push` refuses pushes to `main` and runs `pnpm test`. Changes reach `main` only through pull requests.
 - Use the `new-package` skill to add a workspace package so it matches the existing layout.

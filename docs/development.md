@@ -102,6 +102,20 @@ Parser fixtures are live captures of project-owned forms. See
 live-parse e2e parses the real form and compares it with that fixture, so it
 detects Google changing its page format.
 
+## Git hooks
+
+[Husky](https://github.com/typicode/husky) installs the hooks in `.husky/` on
+`pnpm install` (the root `prepare` script). Set `HUSKY=0` to skip them, which
+the release workflow does for its own push to `main`.
+
+- `commit-msg` runs [commitlint](https://github.com/conventional-changelog/commitlint)
+  with `commitlint.config.mjs`: Conventional Commits plus the `major:` /
+  `minor:` / `patch:` release prefixes (see CLAUDE.md, Commands). The header is limited to
+  100 characters. CI lints every commit in a pull request the same way.
+- `pre-push` refuses any push whose target is `main` (open a pull request) and
+  then runs `pnpm test` (offline unit and integration tests; the turbo cache
+  applies, nothing is forced).
+
 ## Lint and format
 
 Lint is ESLint flat config, sourced from the shared `@kami-ui/eslint-config`
