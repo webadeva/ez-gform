@@ -1,6 +1,6 @@
 {
   "name": "@ez-gform/core",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Framework-agnostic Google Forms parser, entry encoder, and submitter.",
   "homepage": "https://ez-gform.vercel.app/",
   "author": {

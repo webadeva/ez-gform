@@ -1,6 +1,6 @@
 {
   "name": "@ez-gform/react",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "React hooks for submitting to a Google Form without a backend.",
   "homepage": "https://ez-gform.vercel.app/",
   "author": {

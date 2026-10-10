@@ -1,6 +1,6 @@
 {
   "name": "@ez-gform/codegen",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Pure code generators (JSON schema, TS types, React component, HTML form) from a parsed Google Form schema.",
   "homepage": "https://ez-gform.vercel.app/",
   "author": {

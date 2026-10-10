@@ -1,6 +1,6 @@
 {
   "name": "@ez-gform/e2e",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": true,
   "description": "Live network end-to-end tests for ez-gform. Not part of `pnpm test`.",
   "homepage": "https://ez-gform.vercel.app/",

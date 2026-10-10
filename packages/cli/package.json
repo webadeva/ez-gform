@@ -1,6 +1,6 @@
 {
   "name": "@ez-gform/cli",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "npx tool: fetch a public Google Form and emit JSON schema, TS types, a React component, or a plain HTML form.",
   "homepage": "https://ez-gform.vercel.app/",
   "author": {
