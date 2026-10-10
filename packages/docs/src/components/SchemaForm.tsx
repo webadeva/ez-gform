@@ -10,6 +10,7 @@ import type {
   Question,
   TimeValue,
 } from "@ez-gform/types";
+import { useId } from "react";
 
 export interface SchemaFormProps {
   schema: FormSchema;
@@ -66,6 +67,7 @@ const ShortAnswerField = ({
 
 const ChoiceOtherInput = ({
   entryId,
+  id,
   option,
   currentValue,
   onSelectOther,
@@ -73,6 +75,7 @@ const ChoiceOtherInput = ({
   inputType,
 }: {
   entryId: string;
+  id: string;
   option: ChoiceOption;
   currentValue: FieldValue;
   onSelectOther: () => void;
@@ -84,12 +87,13 @@ const ChoiceOtherInput = ({
   return (
     <div className="option">
       <input
+        id={id}
         type={inputType}
         name={entryId}
         checked={isSelected}
         onChange={onSelectOther}
       />
-      <label>Other:</label>
+      <label htmlFor={id}>Other:</label>
       <input
         type="text"
         value={otherText}
@@ -109,6 +113,7 @@ const RadioField = ({
   question: Question;
   form: UseGoogleFormReturn;
 }) => {
+  const baseId = useId();
   const currentValue = form.values[question.entryId];
   const options = question.options ?? [];
   return (
@@ -117,11 +122,13 @@ const RadioField = ({
         {question.title}
         {question.required ? " *" : ""}
       </label>
-      {options.map((option) => {
+      {options.map((option, index) => {
+        const id = `${baseId}-${index}`;
         if (option.isOther) {
           return (
             <ChoiceOtherInput
               key="other"
+              id={id}
               entryId={question.entryId}
               option={option}
               currentValue={currentValue}
@@ -138,6 +145,7 @@ const RadioField = ({
         return (
           <div className="option" key={option.value}>
             <input
+              id={id}
               type="radio"
               name={question.entryId}
               value={option.value}
@@ -146,7 +154,7 @@ const RadioField = ({
                 form.setValue(question.entryId, option.value);
               }}
             />
-            <label>{option.value}</label>
+            <label htmlFor={id}>{option.value}</label>
           </div>
         );
       })}
@@ -201,6 +209,7 @@ const CheckboxesField = ({
   question: Question;
   form: UseGoogleFormReturn;
 }) => {
+  const baseId = useId();
   const currentValue = form.values[question.entryId];
   const list = Array.isArray(currentValue) ? currentValue : [];
   const otherEntry = list.find(isOtherValue);
@@ -226,18 +235,20 @@ const CheckboxesField = ({
         {question.title}
         {question.required ? " *" : ""}
       </label>
-      {options.map((option) => {
+      {options.map((option, index) => {
+        const id = `${baseId}-${index}`;
         if (option.isOther) {
           return (
             <div className="option" key="other">
               <input
+                id={id}
                 type="checkbox"
                 checked={Boolean(otherEntry)}
                 onChange={(event) => {
                   setOther({ selected: event.target.checked });
                 }}
               />
-              <label>Other:</label>
+              <label htmlFor={id}>Other:</label>
               <input
                 type="text"
                 value={isOtherValue(otherEntry) ? otherEntry.other : ""}
@@ -255,11 +266,12 @@ const CheckboxesField = ({
         return (
           <div className="option" key={option.value}>
             <input
+              id={id}
               type="checkbox"
               checked={checkboxField.checked}
               onChange={checkboxField.onChange}
             />
-            <label>{option.value}</label>
+            <label htmlFor={id}>{option.value}</label>
           </div>
         );
       })}
@@ -321,9 +333,26 @@ const DateField = ({
   const includeTime = question.date?.includeTime ?? false;
   const includeYear = question.date?.includeYear ?? true;
 
-  const patch = (next: Partial<DateValue>) => {
-    const base: DateValue = dateValue ?? { month: 1, day: 1 };
-    form.setValue(question.entryId, { ...base, ...next });
+  // Empty parts stay `undefined` (the encoder omits them); seeding a default
+  // would corrupt the next part typed (Day then Month "3" became month 13).
+  const patch = (
+    next: Partial<Record<keyof DateValue, number | undefined>>,
+  ) => {
+    const base = (dateValue ?? {
+      month: undefined,
+      day: undefined,
+    }) as Partial<DateValue>;
+    const merged = { ...base, ...next };
+    const allEmpty = Object.values(merged).every((v) => {
+      return v === undefined;
+    });
+    form.setValue(
+      question.entryId,
+      allEmpty ? undefined : (merged as DateValue),
+    );
+  };
+  const part = (raw: string) => {
+    return raw === "" ? undefined : Number(raw);
   };
 
   return (
@@ -339,7 +368,7 @@ const DateField = ({
           placeholder="MM"
           value={dateValue?.month ?? ""}
           onChange={(event) => {
-            patch({ month: Number(event.target.value) });
+            patch({ month: part(event.target.value) });
           }}
         />
         <input
@@ -348,7 +377,7 @@ const DateField = ({
           placeholder="DD"
           value={dateValue?.day ?? ""}
           onChange={(event) => {
-            patch({ day: Number(event.target.value) });
+            patch({ day: part(event.target.value) });
           }}
         />
         {includeYear && (
@@ -358,7 +387,7 @@ const DateField = ({
             placeholder="YYYY"
             value={dateValue?.year ?? ""}
             onChange={(event) => {
-              patch({ year: Number(event.target.value) });
+              patch({ year: part(event.target.value) });
             }}
           />
         )}
@@ -370,7 +399,7 @@ const DateField = ({
               placeholder="HH"
               value={dateValue?.hour ?? ""}
               onChange={(event) => {
-                patch({ hour: Number(event.target.value) });
+                patch({ hour: part(event.target.value) });
               }}
             />
             <input
@@ -379,7 +408,7 @@ const DateField = ({
               placeholder="mm"
               value={dateValue?.minute ?? ""}
               onChange={(event) => {
-                patch({ minute: Number(event.target.value) });
+                patch({ minute: part(event.target.value) });
               }}
             />
           </>
@@ -474,6 +503,7 @@ const GridField = ({
                       <td key={col.value}>
                         <input
                           type="checkbox"
+                          aria-label={`${row.label}: ${col.value}`}
                           checked={checked}
                           onChange={(event) => {
                             const next = event.target.checked
@@ -491,6 +521,7 @@ const GridField = ({
                     <td key={col.value}>
                       <input
                         type="radio"
+                        aria-label={`${row.label}: ${col.value}`}
                         name={row.entryId}
                         checked={rowValue === col.value}
                         onChange={() => {

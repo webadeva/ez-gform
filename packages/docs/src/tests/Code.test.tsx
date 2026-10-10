@@ -56,21 +56,21 @@ describe("Code", () => {
     expect(screen.getByRole("button", { name: "Copy" })).toBeDefined();
   });
 
-  it("stays on Copy when the clipboard write rejects", async () => {
-    writeText.mockReturnValue(Promise.reject(new Error("denied")));
-    // The component does not catch the rejection (void promise); swallow it here.
-    const onUnhandled = vi.fn();
-    process.on("unhandledRejection", onUnhandled);
+  it("shows Copy failed when the clipboard write rejects, then resets after 1500ms", async () => {
+    writeText.mockRejectedValue(new Error("denied"));
     render(<Code>{"x"}</Code>);
     await act(async () => {
       screen.getByRole("button", { name: "Copy" }).click();
       await Promise.resolve();
     });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
+    expect(screen.getByRole("button", { name: "Copy failed" })).toBeDefined();
+    act(() => {
+      vi.advanceTimersByTime(1499);
     });
-    process.off("unhandledRejection", onUnhandled);
+    expect(screen.getByRole("button", { name: "Copy failed" })).toBeDefined();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(screen.getByRole("button", { name: "Copy" })).toBeDefined();
-    // TODO(bug): a rejected clipboard write should be caught instead of leaving an unhandled rejection.
   });
 });

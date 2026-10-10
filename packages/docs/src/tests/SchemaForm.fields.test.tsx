@@ -123,10 +123,8 @@ describe("SchemaForm multiple choice", () => {
   it("selects Other, types other text, then switches back to a plain option", async () => {
     const user = userEvent.setup();
     render(<SchemaForm schema={schema} />);
-    const radios = screen.getAllByRole("radio");
-    const other = radios[2];
-    expect(other).toBeDefined();
-    await user.click(other!);
+    const other = screen.getByLabelText("Other:");
+    await user.click(other);
     expect(other).toBeChecked();
     const text = screen.getByLabelText("Other response");
     expect(text).toHaveValue("");
@@ -256,7 +254,11 @@ describe("SchemaForm checkboxes", () => {
     await user.type(screen.getByDisplayValue(""), "Jam");
     await user.click(ham!);
     expect(ham).toBeChecked();
-    // TODO(bug): toggling a plain option must keep the "Other" entry; the hook's toggle_checkbox reducer drops non-string items, so Other is lost today.
+    expect(other).toBeChecked();
+    expect(screen.getByDisplayValue("Jam")).toBeInTheDocument();
+    const body = await submitAndRead(user);
+    expect(body.getAll("entry.1")).toEqual(["__other_option__", "Ham"]);
+    expect(body.get("entry.1.other_option_response")).toBe("Jam");
   });
 });
 
@@ -308,18 +310,27 @@ describe("SchemaForm date", () => {
     return makeSchema(makeQuestion({ title: "When", type: "date", date }));
   };
 
-  it("defaults month/day to 1/1 when only the year is entered", async () => {
+  it("leaves month/day empty when only the year is entered", async () => {
     const user = userEvent.setup();
     render(<SchemaForm schema={dateSchema()} />);
     await user.type(screen.getByLabelText("Year"), "2024");
     expect(screen.getByLabelText("Year")).toHaveValue(2024);
-    expect(screen.getByLabelText("Month")).toHaveValue(1);
-    expect(screen.getByLabelText("Day")).toHaveValue(1);
+    expect(screen.getByLabelText("Month")).toHaveValue(null);
+    expect(screen.getByLabelText("Day")).toHaveValue(null);
     expect(screen.queryByLabelText("Hour")).not.toBeInTheDocument();
     const body = await submitAndRead(user);
     expect(body.get("entry.1_year")).toBe("2024");
-    expect(body.get("entry.1_month")).toBe("1");
-    expect(body.get("entry.1_day")).toBe("1");
+    expect(body.has("entry.1_month")).toBe(false);
+    expect(body.has("entry.1_day")).toBe(false);
+  });
+
+  it("types Month naturally after Day without a seeded value", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={dateSchema()} />);
+    await user.type(screen.getByLabelText("Day"), "7");
+    await user.type(screen.getByLabelText("Month"), "3");
+    expect(screen.getByLabelText("Month")).toHaveValue(3);
+    expect(screen.getByLabelText("Day")).toHaveValue(7);
   });
 
   it("updates month and day independently", async () => {
@@ -327,11 +338,34 @@ describe("SchemaForm date", () => {
     render(<SchemaForm schema={dateSchema()} />);
     await user.type(screen.getByLabelText("Month"), "7");
     expect(screen.getByLabelText("Month")).toHaveValue(7);
-    expect(screen.getByLabelText("Day")).toHaveValue(1);
+    expect(screen.getByLabelText("Day")).toHaveValue(null);
     await user.clear(screen.getByLabelText("Day"));
     await user.type(screen.getByLabelText("Day"), "9");
     expect(screen.getByLabelText("Day")).toHaveValue(9);
     expect(screen.getByLabelText("Month")).toHaveValue(7);
+  });
+
+  it("treats a required date whose parts were all cleared as unanswered", async () => {
+    const user = userEvent.setup();
+    render(
+      <SchemaForm
+        schema={makeSchema(
+          makeQuestion({
+            title: "When",
+            type: "date",
+            required: true,
+            date: { includeTime: false, includeYear: true },
+          }),
+        )}
+      />,
+    );
+    await user.type(screen.getByLabelText("Day"), "7");
+    await user.clear(screen.getByLabelText("Day"));
+    await user.click(
+      screen.getByRole("button", { name: /submit to google form/i }),
+    );
+    expect(await screen.findByText(/Missing required answer/)).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("hides Year when includeYear is false", () => {
@@ -355,7 +389,7 @@ describe("SchemaForm date", () => {
     expect(screen.getByLabelText("Hour")).toHaveValue(13);
     await user.type(screen.getByLabelText("Minute"), "45");
     expect(screen.getByLabelText("Minute")).toHaveValue(45);
-    expect(screen.getByLabelText("Month")).toHaveValue(1);
+    expect(screen.getByLabelText("Month")).toHaveValue(null);
   });
 });
 
@@ -567,5 +601,42 @@ describe("SchemaForm other branches", () => {
     expect(
       screen.getByRole("form", { name: "Google Form" }),
     ).toBeInTheDocument();
+  });
+
+  it("associates option labels with their inputs", async () => {
+    const user = userEvent.setup();
+    render(
+      <SchemaForm
+        schema={makeSchema(
+          makeQuestion({
+            id: "r",
+            entryId: "entry.1",
+            type: "multiple_choice",
+            options: [...opts("Red", "Blue"), otherOption],
+          }),
+          makeQuestion({
+            id: "c",
+            entryId: "entry.2",
+            type: "checkboxes",
+            options: [...opts("Cat", "Dog"), otherOption],
+          }),
+          makeQuestion({
+            id: "g",
+            entryId: "entry.3",
+            type: "grid",
+            options: opts("Low", "High"),
+            rows: [{ entryId: "entry.4", label: "Row A" }],
+          }),
+        )}
+      />,
+    );
+    expect(screen.getByRole("radio", { name: "Blue" })).not.toBeChecked();
+    await user.click(screen.getByLabelText("Red"));
+    expect(screen.getByRole("radio", { name: "Red" })).toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: "Dog" }));
+    expect(screen.getByRole("checkbox", { name: "Dog" })).toBeChecked();
+    expect(screen.getAllByLabelText("Other:")).toHaveLength(2);
+    await user.click(screen.getByRole("radio", { name: "Row A: High" }));
+    expect(screen.getByRole("radio", { name: "Row A: High" })).toBeChecked();
   });
 });

@@ -132,18 +132,23 @@ export const PlaygroundClient = () => {
               role="tablist"
               aria-label="Output format"
               onKeyDown={(event) => {
-                const step =
-                  event.key === "ArrowRight"
-                    ? 1
-                    : event.key === "ArrowLeft"
-                      ? -1
-                      : 0;
-                if (!step) return;
                 const index = TABS.findIndex((t) => {
                   return t.id === tab;
                 });
-                const next = TABS[(index + step + TABS.length) % TABS.length];
+                const target =
+                  event.key === "ArrowRight"
+                    ? index + 1
+                    : event.key === "ArrowLeft"
+                      ? index - 1
+                      : event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? TABS.length - 1
+                          : null;
+                if (target === null) return;
+                const next = TABS[(target + TABS.length) % TABS.length];
                 if (!next) return;
+                event.preventDefault();
                 setTab(next.id);
                 document.getElementById(`tab-${next.id}`)?.focus();
               }}

@@ -13,6 +13,28 @@ import allQuestionTypes from "../app/playground/all-question-types.fixture.json"
 import PlaygroundPage, { metadata } from "../app/playground/page";
 import { PlaygroundClient } from "../app/playground/PlaygroundClient";
 
+const rethrow = (value: unknown): never => {
+  throw value;
+};
+
+const parseControl = vi.hoisted(() => {
+  const control: { failWith: unknown } = { failWith: undefined };
+  return control;
+});
+
+vi.mock("@ez-gform/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@ez-gform/core")>();
+  return {
+    ...actual,
+    parseFormData: (...args: Parameters<typeof actual.parseFormData>) => {
+      if (parseControl.failWith !== undefined) {
+        rethrow(parseControl.failWith);
+      }
+      return actual.parseFormData(...args);
+    },
+  };
+});
+
 const schema: FormSchema = parseFormData(allQuestionTypes);
 
 const generated = {
@@ -330,7 +352,61 @@ describe("PlaygroundClient code tabs", () => {
     ).toBe("true");
   });
 
-  // TODO(bug): a11y gap - the tablist onKeyDown (PlaygroundClient.tsx:134-149) handles only ArrowLeft/ArrowRight; Home/End should select and focus the first/last tab per the WAI-ARIA tabs pattern.
+  it("selects and focuses the first tab with Home and the last with End", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<PlaygroundClient />);
+    await loadExample(user);
+    await user.click(screen.getByRole("tab", { name: "types" }));
+    await user.keyboard("{End}");
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: "html" }),
+    );
+    expect(codeText(container)).toBe(generated.html);
+    await user.keyboard("{Home}");
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: "json" }),
+    );
+    expect(codeText(container)).toBe(generated.json);
+  });
+
+  it("shows the Error message when parsing the example throws an Error", async () => {
+    parseControl.failWith = new Error("bad fixture");
+    try {
+      const user = userEvent.setup();
+      render(<PlaygroundClient />);
+      await loadExample(user);
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "bad fixture",
+      );
+    } finally {
+      parseControl.failWith = undefined;
+    }
+  });
+
+  it("shows String(cause) when parsing the example throws a non-Error value", async () => {
+    parseControl.failWith = "plain parse failure";
+    try {
+      const user = userEvent.setup();
+      render(<PlaygroundClient />);
+      await loadExample(user);
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "plain parse failure",
+      );
+    } finally {
+      parseControl.failWith = undefined;
+    }
+  });
+
+  it("shows String(cause) when fetch rejects with a non-Error value", async () => {
+    const fetchMock = vi.fn().mockRejectedValue("plain");
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<PlaygroundClient />);
+    await user.type(screen.getByLabelText("Google Form URL or id"), "abc");
+    await user.click(screen.getByRole("button", { name: "Load schema" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("plain");
+  });
+
   it("copies the active tab's output via the copy button", async () => {
     const writeText = vi.fn(() => {
       return Promise.resolve();

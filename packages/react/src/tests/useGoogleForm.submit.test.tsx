@@ -335,7 +335,39 @@ describe("useGoogleForm submit: unmount during submit", () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  // TODO(bug): resetOnSent does not dispatch a reset after the component has unmounted (useGoogleForm.ts:235-237 is not guarded by mountedRef).
+  it("resolves normally with resetOnSent when unmounted mid-flight, without warnings", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {
+      return undefined;
+    });
+    const gate = deferred();
+    const fetchMock = vi.fn().mockReturnValue(gate.promise);
+    const { result, unmount } = renderHook(() => {
+      return useGoogleForm({
+        formId: FORM_ID,
+        initialValues: { "entry.1": "start" },
+        resetOnSent: true,
+        fetch: fetchMock,
+      });
+    });
+
+    let pending!: Promise<unknown>;
+    act(() => {
+      result.current.setValue("entry.1", "edited");
+    });
+    act(() => {
+      pending = result.current.submit();
+    });
+    unmount();
+
+    await act(async () => {
+      gate.resolve(okResponse);
+      await pending;
+    });
+
+    expect(await pending).toEqual({ status: "sent" });
+    expect(result.current.values).toEqual({ "entry.1": "edited" });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
 });
 
 describe("useGoogleForm submit: values read at submit time", () => {
@@ -355,7 +387,24 @@ describe("useGoogleForm submit: values read at submit time", () => {
     expect(sentBody(fetchMock)).toContain("entry.1=fresh");
   });
 
-  // TODO(bug): submit() called in the same act as setValue sends the just-set value rather than the stale pre-update value (stateRef is only synced in an effect, useGoogleForm.ts:160-162,201).
+  it("sends the value set in the same act as submit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse);
+    const { result } = renderHook(() => {
+      return useGoogleForm({
+        formId: FORM_ID,
+        initialValues: { "entry.1": "stale" },
+        fetch: fetchMock,
+      });
+    });
+
+    await act(async () => {
+      result.current.setValue("entry.1", "fresh");
+      await result.current.submit();
+    });
+
+    expect(sentBody(fetchMock)).toContain("entry.1=fresh");
+    expect(sentBody(fetchMock)).not.toContain("stale");
+  });
 });
 
 describe("useGoogleForm submit: request shape and body", () => {

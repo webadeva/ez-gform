@@ -29,15 +29,15 @@ Consolidated bug and follow-up list from the 2026-10 test rebuild.
 
 ## From Phase C (react, docs)
 
-- `toggle_checkbox` reducer keeps only string items, so checking a plain option drops an existing `{other}` entry (packages/react/src/useGoogleForm.ts:100-104). Pinned at react useGoogleForm.register.test.tsx:242, docs SchemaForm.fields.test.tsx:259 and SchemaForm.submit.test.tsx:255.
-- `submit()` in the same act as `setValue` sends stale values: `stateRef` syncs only in an effect (useGoogleForm.ts:160-162, 201). Pinned at useGoogleForm.submit.test.tsx:358.
-- `resetOnSent` dispatch is not guarded by `mountedRef` (useGoogleForm.ts:235-237). Not verified by a test. Comment at useGoogleForm.submit.test.tsx:338.
-- DateField seeds sibling parts with month 1 / day 1, so typing "3" into Month after Day yields month 13 (packages/docs/src/components/SchemaForm.tsx ~324-327). Pinned at SchemaForm.submit.test.tsx:296.
-- `Code.tsx:14` has no `.catch` on `navigator.clipboard.writeText`; a denied clipboard is an unhandled rejection. Pinned at Code.test.tsx:74.
-- Playground tablist handles only ArrowLeft/ArrowRight, no Home/End (PlaygroundClient.tsx:134-149). Comment at PlaygroundClient.test.tsx:333.
-- Documented, not flagged: `setValue` does not clear that field's error; a new `initialValues` identity is only picked up by `reset`; the "validating" status is never observable; encoded key order follows fill order; SchemaForm option labels are sibling `<label>`s not associated with inputs.
-- Unreachable without source change: useGoogleForm.ts:128 reducer `default` arm; PlaygroundClient.tsx:71 non-Error `String(cause)` fallback (lint rule prefer-promise-reject-errors blocks the test).
-- jest-dom 6.10 `vitest.d.ts` augments one-parameter `Assertion<T>` but vitest 5.0.1 declares `Assertion<R, T>`; docs test-setup.ts carries a `declare module "vitest"` bridge. Re-check when bumping either.
+## From Phase C (react, docs), remaining
+
+- By design, not changed: a new `initialValues` identity is only picked up by `reset`; the "validating" status is never observable (validation is synchronous); encoded key order follows fill order.
+- jest-dom (6.10 and 7.0.1 alike) augments the one-parameter `Assertion<T>` while vitest 5.0.1 declares `Assertion<R, T>`, so docs test-setup.ts keeps a `declare module "vitest"` bridge until upstream ships vitest 5 typings. The 6.10.0 pin in the lockfile is deprecated on npm ("incorrect minor"); 6.9.1 is the suggested replacement.
+- `PlaygroundClient.tsx:150` has an `if (!next) return` that only satisfies `noUncheckedIndexedAccess` and can never run; it is why docs branch coverage is below 100.
+
+## Found while fixing (2026-10-10)
+
+- Core's required check passes a partially filled date or time: `validateValues` treats only a key-less object as empty (packages/core/src/encode.ts:200-211), so `{month: 3}` with no day satisfies a required date. Fix in core together with the duration-seconds change.
 
 ## Found in phase D (e2e, coverage, CI)
 

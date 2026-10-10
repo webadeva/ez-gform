@@ -252,11 +252,10 @@ describe("SchemaForm submit: full fixture end-to-end", () => {
     await user.click(plain.getAllByRole("checkbox")[0]!);
     await user.click(plain.getAllByRole("checkbox")[2]!);
 
-    // TODO(bug): toggling a plain checkbox after "Other" is selected drops the Other entry (toggle_checkbox in useGoogleForm.ts keeps only string items); interactions are ordered plain options first, then Other, to still exercise Other here.
     const withOther = field("Checkboxes with other");
-    await user.click(withOther.getAllByRole("checkbox")[0]!);
     await user.click(withOther.getAllByRole("checkbox")[2]!);
     await user.type(withOther.getByRole("textbox"), "Bird");
+    await user.click(withOther.getAllByRole("checkbox")[0]!);
 
     const validated = field("Checkboxes with validation");
     await user.click(validated.getAllByRole("checkbox")[0]!);
@@ -293,12 +292,10 @@ describe("SchemaForm submit: full fixture end-to-end", () => {
     await user.click(checkAt("Row Y", 1)); // Evening
 
     // dates
-    // TODO(bug): typing one date part seeds the other parts with month 1 / day 1 (SchemaForm.tsx DateField patch base), so typing "3" into Month after Day yields 13; each part is cleared first to work around it.
     const typeParts = async (title: string, parts: Record<string, number>) => {
       const scope = field(title);
       for (const [label, value] of Object.entries(parts)) {
         const input = scope.getByLabelText(label);
-        await user.clear(input);
         await user.type(input, String(value));
       }
     };
@@ -330,7 +327,7 @@ describe("SchemaForm submit: full fixture end-to-end", () => {
       "entry.982140529": { other: "Purple" },
       "entry.1985580588": "Two",
       "entry.425514760": ["Apple", "Cherry"],
-      "entry.1932922730": ["Cat", { other: "Bird" }],
+      "entry.1932922730": [{ other: "Bird" }, "Cat"],
       "entry.1304572283": ["A", "B"],
       "entry.1044963262": 4,
       "entry.1170777339": 2,

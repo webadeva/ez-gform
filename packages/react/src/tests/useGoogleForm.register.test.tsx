@@ -239,7 +239,30 @@ describe("registerCheckbox and toggle_checkbox", () => {
     );
   });
 
-  // TODO(bug): toggling a plain checkbox option preserves an existing Other entry (useGoogleForm.ts:100-104 drops non-string items).
+  it("toggling a plain option preserves an existing Other entry", () => {
+    const { result } = setup({
+      initialValues: { "entry.1": [{ other: "custom" }, "a"] },
+    });
+    act(() => {
+      result.current
+        .registerCheckbox("entry.1", "b")
+        .onChange(checkEvent(true));
+    });
+    expect(result.current.values["entry.1"]).toEqual([
+      { other: "custom" },
+      "a",
+      "b",
+    ]);
+    act(() => {
+      result.current
+        .registerCheckbox("entry.1", "a")
+        .onChange(checkEvent(false));
+    });
+    expect(result.current.values["entry.1"]).toEqual([
+      { other: "custom" },
+      "b",
+    ]);
+  });
 });
 
 describe("reset", () => {
@@ -297,7 +320,7 @@ describe("reset", () => {
 });
 
 describe("errors per field", () => {
-  it("is not cleared by setValue (errors only clear on the next validate/submit/reset)", async () => {
+  it("setValue clears that field error only; reset clears the rest", async () => {
     const schema = loadDemoSchema();
     const { result } = setup({ schema });
     await act(async () => {
@@ -309,10 +332,87 @@ describe("errors per field", () => {
     act(() => {
       result.current.setValue(entryId, "something");
     });
-    expect(result.current.errors).toHaveLength(errorCount);
+    expect(result.current.errors).toHaveLength(errorCount - 1);
     act(() => {
       result.current.reset();
     });
     expect(result.current.errors).toEqual([]);
+  });
+});
+
+describe("field errors clear on edit", () => {
+  const schema: FormSchema = {
+    formId: FORM_ID,
+    title: "T",
+    questions: [
+      {
+        id: "q1",
+        entryId: "entry.1",
+        title: "A",
+        type: "short_answer",
+        required: true,
+      },
+      {
+        id: "q2",
+        entryId: "entry.2",
+        title: "B",
+        type: "checkboxes",
+        required: true,
+        options: [{ value: "x", isOther: false }],
+      },
+      {
+        id: "q3",
+        entryId: "entry.3",
+        title: "C",
+        type: "short_answer",
+        required: true,
+      },
+    ],
+    sections: [],
+    multiPage: false,
+  };
+  const failed = async () => {
+    const hook = setup({ schema });
+    await act(async () => {
+      await hook.result.current.submit();
+    });
+    expect(
+      hook.result.current.errors
+        .map((e) => {
+          return e.entryId;
+        })
+        .sort(),
+    ).toEqual(["entry.1", "entry.2", "entry.3"]);
+    return hook;
+  };
+
+  it("setValue clears only that field's error", async () => {
+    const { result } = await failed();
+    act(() => {
+      result.current.setValue("entry.1", "x");
+    });
+    expect(
+      result.current.errors
+        .map((e) => {
+          return e.entryId;
+        })
+        .sort(),
+    ).toEqual(["entry.2", "entry.3"]);
+  });
+
+  it("toggleCheckbox clears only that field's error", async () => {
+    const { result } = await failed();
+    act(() => {
+      result.current
+        .registerCheckbox("entry.2", "x")
+        .onChange(checkEvent(true));
+    });
+    expect(
+      result.current.errors
+        .map((e) => {
+          return e.entryId;
+        })
+        .sort(),
+    ).toEqual(["entry.1", "entry.3"]);
   });
 });
