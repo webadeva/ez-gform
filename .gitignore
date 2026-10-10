@@ -24,3 +24,6 @@ next-env.d.ts
 # gobind working-style plugin (local-only symlink + its session state)
 .claude/skills/gobind
 .claude/gobind/
+
+# vitest reporter output
+.vitest/

@@ -15,6 +15,12 @@ export default defineConfig({
     testTimeout: 120000,
     coverage: {
       provider: "v8",
+      thresholds: {
+        lines: 98,
+        branches: 95,
+        functions: 94,
+        statements: 98,
+      },
       include: ["src/**/*.ts"],
       exclude: [
         "src/**/*.test.ts",

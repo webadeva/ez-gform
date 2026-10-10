@@ -13,6 +13,7 @@ Packages are all scoped `@ez-gform/*`, and all live under `packages/`: `types` (
 - Root scripts all go through turbo: `pnpm build|test|lint|type-check`. Scope with `pnpm turbo run test --filter=@ez-gform/core`.
 - Lint is ESLint flat config via `@kami-ui/eslint-config` (`base` for libraries/CLI, `react` for React packages, `next` for the docs app); Prettier is root-only, config in `.prettierrc`; lint runs per package because the config is type-aware and resolves tsconfig from cwd.
 - Releases happen on every push to `main` via `.github/workflows/release.yml`: the commit prefix `major:`/`minor:` picks the version bump, anything else (including `patch:` or no prefix) is a patch; all publishable packages always share one version; publishing uses npm trusted publishing (OIDC), no tokens.
+- `pnpm test:e2e` runs the live-network e2e suite (`packages/e2e`); it writes two rows per run to the project-owned form's response sheet.
 - Shared deps use the pnpm catalog (`"react": "catalog:"`); workspace deps use `workspace:*`.
 
 ## Google Forms rules that are easy to get wrong
@@ -21,6 +22,7 @@ Invoke the `gform-internals` skill before touching encoding, parsing, or submit 
 
 ## Conventions
 
+- Unit tests (`pnpm test`) must stay offline; network is allowed only in `packages/e2e`.
 - TypeScript strict with `noUncheckedIndexedAccess` and `verbatimModuleSyntax` (from `@ez-gform/tsconfig`); use `import type`.
 - Libraries build with tsup to ESM + CJS + d.ts; `@ez-gform/core` must stay zero-runtime-dependency and browser/Node neutral (no DOM access outside `packages/react`).
 - Tests are Vitest, `*.test.ts(x)` in each package's `src/tests/` folder (not colocated with the source).
