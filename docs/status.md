@@ -5,11 +5,11 @@ Keep the whole file under 40 lines. Timestamps: ISO 8601 with offset, from `date
 
 # Status
 
-Updated: 2026-10-10T10:14:57+05:30
+Updated: 2026-10-10T10:15:41+05:30
 
 ## Now
 
-- Branch `s2oct-fixing-test-cases`, 16 commits ahead of `main`, not pushed. Working tree clean.
+- Branch `s2oct-fixing-test-cases`, 17 commits ahead of `main`, not pushed. Working tree clean.
 - Test rebuild done: 736 offline unit/integration tests across types, core, react, codegen, cli, docs (was 133); coverage thresholds enforced by `pnpm test` (core/codegen 100 on every metric, react 100/98, docs 100/96, cli 100/96).
 - Live e2e in `packages/e2e` (`pnpm test:e2e`, 23 tests): live form parse, three real submissions verified in the response sheet, CLI against the live form, packed-tarball install, docs app via `next start`. Three rows land in the sheet per run.
 - Every bug the tests found is fixed and committed (core, react/docs, codegen, cli split, Duration seconds). `docs/TODO.md` holds the five remaining open items.
