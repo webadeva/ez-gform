@@ -1,6 +1,55 @@
 import { describe, expect, it } from "vitest";
 import { toIdentifier, toPascalCase } from "../names.js";
 
+const RESERVED = [
+  "break",
+  "case",
+  "catch",
+  "class",
+  "const",
+  "continue",
+  "debugger",
+  "default",
+  "delete",
+  "do",
+  "else",
+  "export",
+  "extends",
+  "finally",
+  "for",
+  "function",
+  "if",
+  "import",
+  "in",
+  "instanceof",
+  "new",
+  "return",
+  "super",
+  "switch",
+  "this",
+  "throw",
+  "try",
+  "typeof",
+  "var",
+  "void",
+  "while",
+  "with",
+  "enum",
+  "implements",
+  "interface",
+  "let",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "static",
+  "yield",
+  "await",
+  "null",
+  "true",
+  "false",
+];
+
 describe("toPascalCase", () => {
   it("converts a title with spaces to PascalCase", () => {
     expect(toPascalCase("Event RSVP Form")).toBe("EventRsvpForm");
@@ -13,6 +62,37 @@ describe("toPascalCase", () => {
   it("falls back to Form for an empty/unusable string", () => {
     expect(toPascalCase("")).toBe("Form");
     expect(toPascalCase("!!!")).toBe("Form");
+  });
+
+  it("splits camelCase words", () => {
+    expect(toPascalCase("fooBar")).toBe("FooBar");
+    expect(toPascalCase("fooBarBaz")).toBe("FooBarBaz");
+  });
+
+  it("splits acronym boundaries", () => {
+    expect(toPascalCase("HTMLForm")).toBe("HtmlForm");
+  });
+
+  it("splits a lowercase/digit run followed by an uppercase letter", () => {
+    expect(toPascalCase("abc1Def")).toBe("Abc1Def");
+  });
+
+  it("falls back to Form for whitespace-only and punctuation-only input", () => {
+    expect(toPascalCase("   ")).toBe("Form");
+    expect(toPascalCase("-_.,/")).toBe("Form");
+  });
+
+  it("falls back to Form for non-ASCII-only input", () => {
+    expect(toPascalCase("日本語")).toBe("Form");
+    expect(toPascalCase("🎉")).toBe("Form");
+  });
+
+  it("drops non-ASCII letters but keeps the ASCII words around them", () => {
+    expect(toPascalCase("café menu")).toBe("CafMenu");
+  });
+
+  it("prefixes an underscore when the name would start with a digit", () => {
+    expect(toPascalCase("2024 Booking")).toBe("_2024Booking");
   });
 });
 
@@ -43,5 +123,37 @@ describe("toIdentifier", () => {
 
   it("prefixes a leading digit with words following", () => {
     expect(toIdentifier("123 go")).toBe("_123Go");
+  });
+
+  it("splits camelCase words", () => {
+    expect(toIdentifier("fooBar")).toBe("fooBar");
+  });
+
+  it("splits acronym boundaries and lowercases the first word", () => {
+    expect(toIdentifier("HTMLForm")).toBe("htmlForm");
+  });
+
+  it("falls back to Form for punctuation-only and whitespace-only input", () => {
+    expect(toIdentifier("!!!")).toBe("Form");
+    expect(toIdentifier("   ")).toBe("Form");
+  });
+
+  it("drops non-ASCII letters", () => {
+    expect(toIdentifier("日本語")).toBe("Form");
+    expect(toIdentifier("café menu")).toBe("cafMenu");
+  });
+
+  it.each(RESERVED)("suffixes an underscore for reserved word %s", (word) => {
+    expect(toIdentifier(word)).toBe(`${word}_`);
+  });
+
+  it("does not suffix a non-reserved word that merely contains a reserved one", () => {
+    expect(toIdentifier("classes")).toBe("classes");
+    expect(toIdentifier("delete me")).toBe("deleteMe");
+  });
+
+  it("guards strict-mode binding names like reserved words", () => {
+    expect(toIdentifier("eval")).toBe("eval_");
+    expect(toIdentifier("arguments")).toBe("arguments_");
   });
 });

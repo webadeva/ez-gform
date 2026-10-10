@@ -30,15 +30,13 @@ export const transpiles = (
 /**
  * Full `ts.createProgram` type-check of `source` against the real, built
  * `@ez-gform/core`/`@ez-gform/react` `.d.ts` files, via an in-memory virtual
- * file (no writes to disk). Returns `{ skipped: true }` if the referenced
- * package(s) haven't been built yet (no `dist/index.d.ts`).
+ * file (no writes to disk). Throws if the referenced package(s) haven't been
+ * built yet (no `dist/index.d.ts`), so tests can never pass vacuously.
  */
 export const typeCheck = (
   source: string,
   opts: { needsReact?: boolean; fileName?: string } = {},
-):
-  | { skipped: true }
-  | { skipped: false; ok: boolean; diagnostics: string[] } => {
+): { ok: boolean; diagnostics: string[] } => {
   const needsReact = opts.needsReact ?? false;
   // Use a virtual path inside a real package directory (rather than a
   // made-up path like "/virtual") so TypeScript's module resolution climbs
@@ -48,8 +46,11 @@ export const typeCheck = (
     opts.fileName ??
     `${repoRoot}packages/${needsReact ? "react" : "codegen"}/src/__generated__/generated.tsx`;
 
-  if (!existsSync(coreDtsPath) || (needsReact && !existsSync(reactDtsPath))) {
-    return { skipped: true };
+  if (!existsSync(coreDtsPath)) {
+    throw new Error(`build @ez-gform/core first: ${coreDtsPath} missing`);
+  }
+  if (needsReact && !existsSync(reactDtsPath)) {
+    throw new Error(`build @ez-gform/react first: ${reactDtsPath} missing`);
   }
 
   const compilerOptions: ts.CompilerOptions = {
@@ -101,5 +102,5 @@ export const typeCheck = (
     return `${ts.flattenDiagnosticMessageText(d.messageText, "\n")}${location}`;
   });
 
-  return { skipped: false, ok: messages.length === 0, diagnostics: messages };
+  return { ok: messages.length === 0, diagnostics: messages };
 };

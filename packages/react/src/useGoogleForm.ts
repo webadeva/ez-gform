@@ -86,22 +86,28 @@ type Action =
   | { type: "submit_start" }
   | { type: "submit_settle"; status: Status; result: SubmitResult };
 
+const withoutFieldError = (
+  errors: FieldError[],
+  entryId: string,
+): FieldError[] => {
+  return errors.filter((e) => {
+    return e.entryId !== entryId;
+  });
+};
+
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "set_value":
       return {
         ...state,
         values: { ...state.values, [action.entryId]: action.value },
+        errors: withoutFieldError(state.errors, action.entryId),
       };
     case "set_values":
       return { ...state, values: { ...state.values, ...action.patch } };
     case "toggle_checkbox": {
       const raw = state.values[action.entryId];
-      const current = Array.isArray(raw)
-        ? raw.filter((v): v is string => {
-            return typeof v === "string";
-          })
-        : [];
+      const current = Array.isArray(raw) ? raw : [];
       const next = action.checked
         ? current.includes(action.option)
           ? current
@@ -112,6 +118,7 @@ const reducer = (state: State, action: Action): State => {
       return {
         ...state,
         values: { ...state.values, [action.entryId]: next },
+        errors: withoutFieldError(state.errors, action.entryId),
       };
     }
     case "reset":
@@ -124,8 +131,6 @@ const reducer = (state: State, action: Action): State => {
       return { ...state, status: "submitting", errors: [] };
     case "submit_settle":
       return { ...state, status: action.status, result: action.result };
-    default:
-      return state;
   }
 };
 
@@ -148,7 +153,7 @@ export const useGoogleForm = (
     resetOnSent = false,
   } = options;
 
-  const [state, dispatch] = useReducer(reducer, undefined, (): State => {
+  const [state, rawDispatch] = useReducer(reducer, undefined, (): State => {
     return {
       values: options.initialValues ?? {},
       status: "idle",
@@ -156,10 +161,13 @@ export const useGoogleForm = (
     };
   });
 
+  // Mirrors the reducer state synchronously on every dispatch so submit() sees
+  // values set earlier in the same tick (before React re-renders).
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const dispatch = useCallback((action: Action) => {
+    stateRef.current = reducer(stateRef.current, action);
+    rawDispatch(action);
+  }, []);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -177,17 +185,23 @@ export const useGoogleForm = (
     new Map<string, (event: ChangeEvent<HTMLInputElement>) => void>(),
   );
 
-  const setValue = useCallback((entryId: string, value: FieldValue) => {
-    dispatch({ type: "set_value", entryId, value });
-  }, []);
+  const setValue = useCallback(
+    (entryId: string, value: FieldValue) => {
+      dispatch({ type: "set_value", entryId, value });
+    },
+    [dispatch],
+  );
 
-  const setValues = useCallback((patch: FormValues) => {
-    dispatch({ type: "set_values", patch });
-  }, []);
+  const setValues = useCallback(
+    (patch: FormValues) => {
+      dispatch({ type: "set_values", patch });
+    },
+    [dispatch],
+  );
 
   const reset = useCallback(() => {
     dispatch({ type: "reset", values: options.initialValues ?? {} });
-  }, [options.initialValues]);
+  }, [dispatch, options.initialValues]);
 
   const submit = useCallback(
     (event?: { preventDefault?: () => void }): Promise<SubmitResult> => {
@@ -232,7 +246,7 @@ export const useGoogleForm = (
           onError?.(result);
         } else {
           onSent?.(result);
-          if (resetOnSent) {
+          if (resetOnSent && mountedRef.current) {
             dispatch({ type: "reset", values: options.initialValues ?? {} });
           }
         }
@@ -247,6 +261,7 @@ export const useGoogleForm = (
       return run;
     },
     [
+      dispatch,
       formId,
       schema,
       validate,
@@ -307,7 +322,7 @@ export const useGoogleForm = (
 
       return { name: entryId, value: option, checked, onChange };
     },
-    [state.values],
+    [state.values, dispatch],
   );
 
   const prefillUrl = useMemo(() => {

@@ -9,6 +9,11 @@ export interface DateValue {
 export interface TimeValue {
   hour: number;
   minute: number;
+  /**
+   * Seconds, for Duration questions only (sent as `entry.N_second`). Google
+   * silently ignores it on time-of-day questions.
+   */
+  second?: number;
 }
 
 export interface OtherValue {

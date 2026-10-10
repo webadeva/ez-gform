@@ -27,14 +27,6 @@ const q = (value: string): string => {
   return JSON.stringify(value);
 };
 
-const hasOtherOption = (question: Question): boolean => {
-  return (
-    question.options?.some((option) => {
-      return option.isOther;
-    }) ?? false
-  );
-};
-
 const renderShortText = (question: Question, multiline: boolean): string => {
   const tag = multiline ? "textarea" : "input";
   const typeAttr = multiline ? "" : ' type="text"';
@@ -102,12 +94,20 @@ const renderCheckboxGroup = (question: Question): string => {
         return `        <label>
           <input
             type="checkbox"
-            onChange={(e) => form.setValue(${entryId}, e.target.checked ? { other: "" } : undefined)}
+            onChange={(e) => {
+              const current = form.values[${entryId}];
+              const chosen = Array.isArray(current) ? current.filter((v) => typeof v === "string") : [];
+              form.setValue(${entryId}, e.target.checked ? [...chosen, { other: "" }] : chosen);
+            }}
           />
           Other:
           <input
             type="text"
-            onChange={(e) => form.setValue(${entryId}, { other: e.target.value })}
+            onChange={(e) => {
+              const current = form.values[${entryId}];
+              const chosen = Array.isArray(current) ? current.filter((v) => typeof v === "string") : [];
+              form.setValue(${entryId}, [...chosen, { other: e.target.value }]);
+            }}
           />
         </label>`;
       }
@@ -196,19 +196,85 @@ ${rows}
 
 const renderDate = (question: Question): string => {
   const entryId = q(question.entryId);
+  const includeYear = question.date?.includeYear ?? true;
+  const includeTime = question.date?.includeTime ?? false;
+  const required = question.required ? "true" : "false";
+  const dateParts = includeYear ? "[year, month, day]" : "[, month, day]";
+  const dateValue = includeYear ? "year, month, day" : "month, day";
+  const isObject = `typeof current === "object" && current !== null && !Array.isArray(current)`;
+  if (!includeTime) {
+    return `<input
+        type="date"
+        required={${required}}
+        onChange={(e) => {
+          const ${dateParts} = e.target.value.split("-").map(Number);
+          if (month === undefined || day === undefined) return;
+          form.setValue(${entryId}, { ${dateValue} });
+        }}
+      />`;
+  }
+  const keepYear = includeYear ? "year: Number(current.year), " : "";
   return `<input
         type="date"
-        required={${question.required ? "true" : "false"}}
+        required={${required}}
         onChange={(e) => {
-          const parts = e.target.value.split("-").map(Number);
-          const [year, month, day] = parts;
+          const ${dateParts} = e.target.value.split("-").map(Number);
           if (month === undefined || day === undefined) return;
-          form.setValue(${entryId}, { year, month, day });
+          const current = form.values[${entryId}];
+          const time = ${isObject} && "hour" in current && "minute" in current ? { hour: Number(current.hour), minute: Number(current.minute) } : {};
+          form.setValue(${entryId}, { ${dateValue}, ...time });
+        }}
+      />
+      <input
+        type="time"
+        required={${required}}
+        onChange={(e) => {
+          const [hour, minute] = e.target.value.split(":").map(Number);
+          if (hour === undefined || minute === undefined) return;
+          const current = form.values[${entryId}];
+          const date = ${isObject} && "month" in current && "day" in current ? { ${keepYear}month: Number(current.month), day: Number(current.day) } : {};
+          form.setValue(${entryId}, { ...date, hour, minute });
         }}
       />`;
 };
 
-const renderTime = (question: Question): string => {
+const renderDuration = (question: Question, typescript: boolean): string => {
+  const entryId = q(question.entryId);
+  const required = question.required ? "true" : "false";
+  const isObject = `typeof current === "object" && current !== null && !Array.isArray(current)`;
+  // Parts stay undefined until typed, so a half-typed duration is rejected by
+  // validation instead of submitting zeros; TimeValue needs hour/minute, hence the casts.
+  const baseCast = typescript
+    ? ' as Partial<Record<"hour" | "minute" | "second", number>>'
+    : "";
+  const valueCast = typescript
+    ? " as { hour: number; minute: number; second?: number }"
+    : "";
+  const part = (key: string, label: string, max: number): string => {
+    return `<input
+        type="number"
+        min={0}
+        max={${max}}
+        aria-label="${label}"
+        required={${required}}
+        onChange={(e) => {
+          const current = form.values[${entryId}];
+          const base = (${isObject} ? current : {})${baseCast};
+          const merged = { ...base, ${key}: e.target.value === "" ? undefined : Number(e.target.value) };
+          const allEmpty = Object.values(merged).every((v) => v === undefined);
+          form.setValue(${entryId}, allEmpty ? undefined : (merged${valueCast}));
+        }}
+      />`;
+  };
+  return [
+    part("hour", "Hours", 23),
+    part("minute", "Minutes", 59),
+    part("second", "Seconds", 59),
+  ].join("\n      ");
+};
+
+const renderTime = (question: Question, typescript: boolean): string => {
+  if (question.time?.isDuration) return renderDuration(question, typescript);
   const entryId = q(question.entryId);
   return `<input
         type="time"
@@ -222,7 +288,7 @@ const renderTime = (question: Question): string => {
       />`;
 };
 
-const renderQuestion = (question: Question): string => {
+const renderQuestion = (question: Question, typescript: boolean): string => {
   const label = `<label>${jsxEscape(question.title)}${
     question.required ? " *" : ""
   }</label>`;
@@ -258,7 +324,7 @@ const renderQuestion = (question: Question): string => {
       field = renderDate(question);
       break;
     case "time":
-      field = renderTime(question);
+      field = renderTime(question, typescript);
       break;
     case "file_upload":
       field = `<p>"${jsxEscape(question.title)}" is a file upload question and is not supported by Google Forms submission without sign-in.</p>`;
@@ -276,6 +342,7 @@ const renderQuestion = (question: Question): string => {
 const renderSection = (
   section: Section,
   questionsById: Map<string, Question>,
+  typescript: boolean,
 ): string => {
   const heading = section.title
     ? `    <h2>${jsxEscape(section.title)}</h2>\n`
@@ -290,16 +357,11 @@ const renderSection = (
     .filter((question): question is Question => {
       return question !== undefined;
     })
-    .map(renderQuestion)
+    .map((question) => {
+      return renderQuestion(question, typescript);
+    })
     .join("\n");
   return `${heading}${description}${body}`;
-};
-
-const usesOther = (question: Question): boolean => {
-  return (
-    hasOtherOption(question) &&
-    (question.type === "multiple_choice" || question.type === "checkboxes")
-  );
 };
 
 /**
@@ -314,8 +376,10 @@ export const generateReactComponent = (
 ): string => {
   const typescript = options.typescript ?? true;
   const name = options.name ?? `${toPascalCase(schema.title)}Form`;
-  const schemaJson = JSON.stringify(schema, null, 2);
-  void usesOther;
+  // fbzx is a per-request token; core generates a fresh one when it is absent.
+  const embedded = { ...schema };
+  delete embedded.fbzx;
+  const schemaJson = JSON.stringify(embedded, null, 2);
 
   const questionsById = new Map(
     schema.questions.map((qn) => {
@@ -327,16 +391,20 @@ export const generateReactComponent = (
     (schema.sections[0]?.title && schema.sections[0].title.length > 0)
       ? schema.sections
           .map((section) => {
-            return renderSection(section, questionsById);
+            return renderSection(section, questionsById, typescript);
           })
           .join("\n")
-      : schema.questions.map(renderQuestion).join("\n");
+      : schema.questions
+          .map((question) => {
+            return renderQuestion(question, typescript);
+          })
+          .join("\n");
 
   const schemaDeclaration = typescript
     ? `${schemaJson} as const satisfies FormSchema`
     : schemaJson;
   const typeImport = typescript
-    ? `import type { FormSchema } from "@ez-gform/core";\n`
+    ? `import type { FormSchema } from "@ez-gform/react";\n`
     : "";
 
   return `${typeImport}import { useGoogleForm } from "@ez-gform/react";

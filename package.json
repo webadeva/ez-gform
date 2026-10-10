@@ -1,7 +1,13 @@
 {
   "name": "ez-gform",
+  "homepage": "https://ez-gform.vercel.app/",
+  "author": {
+    "name": "Gobind Singh",
+    "email": "thesinghgobind@gmail.com",
+    "url": "https://www.thegobindsingh.com/"
+  },
   "private": true,
-  "packageManager": "pnpm@12.4.2",
+  "packageManager": "pnpm@12.8.1",
   "engines": {
     "node": ">=20"
   },
@@ -9,16 +15,21 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "@kami-ui/eslint-config": "0.0.6",
     "eslint": "10.10.0",
+    "husky": "^9.1.7",
     "prettier": "3.9.7",
     "prettier-plugin-organize-imports": "4.3.0",
     "turbo": "2.10.13",

@@ -45,10 +45,12 @@ export const extractPublicLoadData = (html: string): unknown => {
   try {
     return JSON.parse(literal);
   } catch (cause) {
+    // JSON.parse on a string only ever throws a SyntaxError, so no non-Error arm.
     throw new ParseError(
       `extractPublicLoadData: failed to JSON.parse the extracted FB_PUBLIC_LOAD_DATA_ literal: ${
-        cause instanceof Error ? cause.message : String(cause)
+        (cause as SyntaxError).message
       }`,
+      { cause },
     );
   }
 };

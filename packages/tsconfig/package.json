@@ -1,5 +1,11 @@
 {
   "name": "@ez-gform/tsconfig",
+  "homepage": "https://ez-gform.vercel.app/",
+  "author": {
+    "name": "Gobind Singh",
+    "email": "thesinghgobind@gmail.com",
+    "url": "https://www.thegobindsingh.com/"
+  },
   "version": "0.1.4",
   "private": true,
   "license": "MIT",

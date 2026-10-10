@@ -22,7 +22,11 @@ const ROWS: { type: string; value: string; note?: string }[] = [
     value: "{ year, month, day }",
     note: "year is optional. Add hour and minute if the question asks for a time.",
   },
-  { type: "Time", value: "{ hour, minute }" },
+  {
+    type: "Time",
+    value: "{ hour, minute }",
+    note: "Duration questions also take an optional second.",
+  },
   {
     type: "Multiple choice grid",
     value: `{ "entry.<rowId>": "Column" }`,

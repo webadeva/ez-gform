@@ -10,15 +10,24 @@ export interface CodeProps {
 
 /** A `<pre>` code block with a copy-to-clipboard button. No syntax highlighting dependency required. */
 export const Code = ({ children, language, filename }: CodeProps) => {
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<"copied" | "failed" | null>(null);
+
+  const flash = (next: "copied" | "failed") => {
+    setStatus(next);
+    setTimeout(() => {
+      return setStatus(null);
+    }, 1500);
+  };
 
   const onCopy = () => {
-    void navigator.clipboard.writeText(children).then(() => {
-      setCopied(true);
-      setTimeout(() => {
-        return setCopied(false);
-      }, 1500);
-    });
+    navigator.clipboard.writeText(children).then(
+      () => {
+        flash("copied");
+      },
+      () => {
+        flash("failed");
+      },
+    );
   };
 
   return (
@@ -26,7 +35,11 @@ export const Code = ({ children, language, filename }: CodeProps) => {
       <div className="code-block-header">
         <span>{filename ?? language ?? "code"}</span>
         <button type="button" onClick={onCopy} className="copy-button">
-          {copied ? "Copied" : "Copy"}
+          {status === "copied"
+            ? "Copied"
+            : status === "failed"
+              ? "Copy failed"
+              : "Copy"}
         </button>
       </div>
       <pre>

@@ -3,13 +3,19 @@
   "version": "0.1.4",
   "private": true,
   "description": "Documentation site and interactive playground for ez-gform.",
+  "homepage": "https://ez-gform.vercel.app/",
+  "author": {
+    "name": "Gobind Singh",
+    "email": "thesinghgobind@gmail.com",
+    "url": "https://www.thegobindsingh.com/"
+  },
   "type": "module",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
@@ -27,7 +33,9 @@
   "devDependencies": {
     "@ez-gform/tsconfig": "workspace:*",
     "@kami-ui/eslint-config": "0.0.6",
+    "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22.10.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

@@ -1,0 +1,33 @@
+{
+  "name": "@ez-gform/e2e",
+  "version": "0.1.4",
+  "private": true,
+  "description": "Live network end-to-end tests for ez-gform. Not part of `pnpm test`.",
+  "homepage": "https://ez-gform.vercel.app/",
+  "author": {
+    "name": "Gobind Singh",
+    "email": "thesinghgobind@gmail.com",
+    "url": "https://www.thegobindsingh.com/"
+  },
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test:e2e": "vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ez-gform/cli": "workspace:*",
+    "@ez-gform/codegen": "workspace:*",
+    "@ez-gform/core": "workspace:*",
+    "@ez-gform/docs": "workspace:*",
+    "@ez-gform/tsconfig": "workspace:*",
+    "@ez-gform/types": "workspace:*",
+    "@kami-ui/eslint-config": "0.0.6",
+    "@types/node": "^22.10.0",
+    "eslint": "10.10.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

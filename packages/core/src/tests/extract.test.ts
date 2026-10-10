@@ -39,6 +39,48 @@ describe("extractPublicLoadData", () => {
     const data = extractPublicLoadData(html);
     expect(data).toEqual([1, "a ] weird [ string", [2, 3]]);
   });
+
+  it("throws ParseError when the assignment is not an array literal", () => {
+    expect(() => {
+      return extractPublicLoadData('var FB_PUBLIC_LOAD_DATA_ = {"a":1};');
+    }).toThrow(/expected array literal/);
+    expect(() => {
+      return extractPublicLoadData("var FB_PUBLIC_LOAD_DATA_ =");
+    }).toThrow(ParseError);
+  });
+
+  it("throws ParseError carrying the JSON.parse message when the literal is invalid JSON", () => {
+    let caught: unknown;
+    try {
+      extractPublicLoadData("var FB_PUBLIC_LOAD_DATA_ = [1,];");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ParseError);
+    expect((caught as ParseError).message).toMatch(
+      /failed to JSON\.parse the extracted FB_PUBLIC_LOAD_DATA_ literal: .+/,
+    );
+  });
+
+  it("keeps the original JSON.parse SyntaxError as the ParseError cause", () => {
+    let caught: unknown;
+    try {
+      extractPublicLoadData("var FB_PUBLIC_LOAD_DATA_ = [1,];");
+    } catch (error) {
+      caught = error;
+    }
+    const { cause } = caught as ParseError;
+    expect(cause).toBeInstanceOf(SyntaxError);
+    expect((caught as ParseError).message).toContain(
+      (cause as SyntaxError).message,
+    );
+  });
+
+  it("respects escaped quotes and escaped backslashes inside strings", () => {
+    const html =
+      'var FB_PUBLIC_LOAD_DATA_ = ["say \\"]\\" now", "back\\\\", [1]];</script>';
+    expect(extractPublicLoadData(html)).toEqual(['say "]" now', "back\\", [1]]);
+  });
 });
 
 describe("extractFbzx", () => {
