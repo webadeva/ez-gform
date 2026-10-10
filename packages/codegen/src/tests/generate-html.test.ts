@@ -19,6 +19,8 @@ const expectedNames = (schema: FormSchema): Set<string> => {
   const names = new Set<string>();
   if (schema.multiPage) {
     names.add("fbzx");
+    names.add("pageHistory");
+    names.add("partialResponse");
   }
   for (const question of schema.questions) {
     switch (question.type) {
@@ -160,22 +162,70 @@ describe("generateHtmlForm: required attribute", () => {
       required: true,
       options: [{ value: "One", isOther: false }],
     });
-    expect(html).toContain('<select name="entry.1" required>');
+    expect(html).toContain(
+      '<select name="entry.1" required>\n  <option value="" disabled selected>Choose</option>\n  <option value="One">One</option>',
+    );
   });
 
-  // TODO(bug): required multiple_choice, checkboxes, linear_scale, grid and
-  // checkbox_grid questions should block submission in the browser; today
-  // generate-html.ts only emits `required` for short_answer, paragraph and
-  // dropdown (renderQuestion cases at :58-83 never use requiredAttr), so the
-  // " *" label is the only hint for these.
-  it("shows the asterisk but no required attribute on choice-style questions", () => {
-    const html = htmlFor({
+  it("marks every radio of a required multiple_choice and linear_scale as required", () => {
+    const mc = htmlFor({
       type: "multiple_choice",
+      required: true,
+      options: [
+        { value: "A", isOther: false },
+        { value: "", isOther: true },
+      ],
+    });
+    expect(mc).toContain("<label>Q *</label>");
+    expect(mc).toContain('name="entry.1" value="A" required>');
+    expect(mc).toContain('value="__other_option__" required>');
+    const scale = htmlFor({
+      type: "linear_scale",
+      required: true,
+      scale: { min: 1, max: 2 },
+    });
+    expect(scale.match(/type="radio"[^>]* required>/g)).toHaveLength(2);
+  });
+
+  it("marks each row's radios of a required grid as required", () => {
+    const html = htmlFor({
+      type: "grid",
+      required: true,
+      options: [{ value: "X", isOther: false }],
+      rows: [{ entryId: "entry.1", label: "R" }],
+    });
+    expect(html).toContain(
+      '<input type="radio" name="entry.1" value="X" required>',
+    );
+  });
+
+  it("keeps checkboxes and checkbox grids without required (no native at-least-one)", () => {
+    const cb = htmlFor({
+      type: "checkboxes",
       required: true,
       options: [{ value: "A", isOther: false }],
     });
-    expect(html).toContain("<label>Q *</label>");
-    expect(html).not.toContain("required");
+    expect(cb).toContain("<label>Q *</label>");
+    expect(cb).not.toContain("required");
+    const cbg = htmlFor({
+      type: "checkbox_grid",
+      required: true,
+      options: [{ value: "X", isOther: false }],
+      rows: [{ entryId: "entry.1", label: "R" }],
+    });
+    expect(cbg).not.toContain("required");
+  });
+
+  it("marks date and time inputs as required", () => {
+    const date = htmlFor({
+      type: "date",
+      required: true,
+      date: { includeTime: true, includeYear: true },
+    });
+    expect(date.match(/type="number"[^>]* required>/g)).toHaveLength(5);
+    const time = htmlFor({ type: "time", required: true });
+    expect(time.match(/type="number"[^>]* required>/g)).toHaveLength(2);
+    expect(htmlFor({ type: "time" })).not.toContain("required");
   });
 });
 
@@ -238,11 +288,18 @@ describe("generateHtmlForm: escaping", () => {
     expect(html).toContain('value="O\'Neil"');
   });
 
-  // TODO(bug): question.description and schema.description are never rendered,
-  // so descriptions (including their escaping) have no output to assert on.
-  it("does not render question descriptions", () => {
-    const html = htmlFor({ description: "Secret <b>help</b>" });
-    expect(html).not.toContain("Secret");
+  it("renders escaped question and form descriptions as paragraphs", () => {
+    const html = htmlFor(
+      { description: "Secret <b>help</b>" },
+      { description: "Form & <i>intro</i>" },
+    );
+    expect(html).toContain(
+      "<label>Q</label>\n<p>Secret &lt;b&gt;help&lt;/b&gt;</p>\n<input",
+    );
+    expect(html).toContain("<p>Form &amp; &lt;i&gt;intro&lt;/i&gt;</p>");
+    expect(html).not.toContain("<b>");
+    expect(html).not.toContain("<i>");
+    expect(htmlFor({})).not.toContain("<p>");
   });
 });
 
@@ -256,10 +313,10 @@ describe("generateHtmlForm: question renderers", () => {
       ],
     });
     expect(html).toContain(
-      '<select name="entry.1">\n  <option value="One">One</option>\n  <option value="Two">Two</option>\n</select>',
+      '<select name="entry.1">\n  <option value="" selected></option>\n  <option value="One">One</option>\n  <option value="Two">Two</option>\n</select>',
     );
     expect(htmlFor({ type: "dropdown" })).toContain(
-      '<select name="entry.1">\n\n</select>',
+      '<select name="entry.1">\n  <option value="" selected></option>\n</select>',
     );
   });
 
@@ -400,24 +457,34 @@ describe("generateHtmlForm: form wrapper", () => {
     );
   });
 
-  it("emits a hidden fbzx only for multi-page forms", () => {
+  it("emits fbzx, pageHistory and partialResponse only for multi-page forms", () => {
     const single = generateHtmlForm(makeSchema([]));
-    expect(single).not.toContain("fbzx");
-    const multi = generateHtmlForm(
-      makeSchema([], { multiPage: true, fbzx: "-123" }),
+    for (const name of ["fbzx", "pageHistory", "partialResponse"]) {
+      expect(single).not.toContain(name);
+    }
+    const multi = generateHtmlForm(makeSchema([], { multiPage: true }));
+    expect(multi).toContain(
+      '<input type="hidden" name="fbzx" value="-1000000000000000000">',
     );
-    expect(multi).toContain('<input type="hidden" name="fbzx" value="-123">');
-    const noToken = generateHtmlForm(makeSchema([], { multiPage: true }));
-    expect(noToken).toContain('<input type="hidden" name="fbzx" value="">');
+    expect(multi).toContain(
+      '<input type="hidden" name="pageHistory" value="0">',
+    );
+    expect(multi).toContain(
+      '<input type="hidden" name="partialResponse" value="[null,null,&quot;-1000000000000000000&quot;]">',
+    );
+    const sections = ["a", "b", "c"].map((title) => {
+      return { title, questionIds: [] };
+    });
+    expect(
+      generateHtmlForm(makeSchema([], { multiPage: true, sections })),
+    ).toContain('name="pageHistory" value="0,1,2"');
   });
 
-  // TODO(bug): multi-page output should also carry pageHistory (0,1,..n-1) and
-  // partialResponse ([null,null,fbzx]) hidden fields like core buildSubmitBody
-  // (packages/core/src/submit.ts:41-47); generate-html.ts:127-132 emits only fbzx.
-  it("emits only fbzx among the multi-page extras", () => {
-    const html = generateHtmlForm(makeSchema([], { multiPage: true }));
-    expect(html).not.toContain("pageHistory");
-    expect(html).not.toContain("partialResponse");
+  it("never leaks the schema's per-request fbzx", () => {
+    const html = generateHtmlForm(
+      makeSchema([], { multiPage: true, fbzx: "-1234567890123456789" }),
+    );
+    expect(html).not.toContain("-1234567890123456789");
   });
 
   it("ends with a submit button and closes the form", () => {

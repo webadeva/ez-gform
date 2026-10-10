@@ -96,11 +96,11 @@ describe("generated React component, rendered against the real @ez-gform/react",
     await user.click(plainBoxes.getByRole("checkbox", { name: "Apple" }));
     await user.click(plainBoxes.getByRole("checkbox", { name: "Cherry" }));
 
-    // TODO(bug): the generated "Other" checkbox calls setValue(entryId, { other })
-    // which replaces the whole selection, so ticking "Cat" and then "Other" drops
-    // "Cat" (and ticking "Cat" after "Other" drops Other); the correct behaviour
-    // is a combined array such as ["Cat", { other: "Bird" }] (generate-react.ts
-    // renderCheckboxGroup, the isOther branch). Only "Other" alone is asserted.
+    await user.click(
+      within(block("Checkboxes with other")).getByRole("checkbox", {
+        name: "Cat",
+      }),
+    );
     const checkboxOther = within(block("Checkboxes with other"));
     await user.click(checkboxOther.getAllByRole("checkbox").at(-1)!);
     await user.type(checkboxOther.getByRole("textbox"), "Bird");
@@ -145,6 +145,15 @@ describe("generated React component, rendered against the real @ez-gform/react",
         "2024-03-15",
       );
     }
+    for (const title of [
+      "Date with year and time",
+      "Date with time without year",
+    ]) {
+      await user.type(
+        block(title).querySelector<HTMLInputElement>('input[type="time"]')!,
+        "09:07",
+      );
+    }
     await user.type(
       block("Time of day").querySelector<HTMLInputElement>(
         'input[type="time"]',
@@ -169,14 +178,8 @@ describe("generated React component, rendered against the real @ez-gform/react",
       "Content-Type": "application/x-www-form-urlencoded",
     });
 
-    // The date and time questions keep what the generated component emits
-    // today (year, month, day / hour, minute), which is what core encodes for
-    // the same values.
-    // TODO(bug): the generated date input ignores question.date, so "Date
-    // without year" still sends entry.N_year and the two "...and time" date
-    // questions never send entry.N_hour / entry.N_minute; the correct behaviour
-    // is to honour includeYear and includeTime (generate-react.ts renderDate).
     const date = { year: 2024, month: 3, day: 15 };
+    const withTime = { ...date, hour: 9, minute: 7 };
     const expected: FormValues = {
       "entry.2028813558": "Hello",
       "entry.758594018": "World",
@@ -185,7 +188,7 @@ describe("generated React component, rendered against the real @ez-gform/react",
       "entry.982140529": { other: "Purple" },
       "entry.1985580588": "Two",
       "entry.425514760": ["Apple", "Cherry"],
-      "entry.1932922730": { other: "Bird" },
+      "entry.1932922730": ["Cat", { other: "Bird" }],
       "entry.1304572283": ["A", "C"],
       "entry.1044963262": 4,
       "entry.1170777339": 7,
@@ -194,9 +197,9 @@ describe("generated React component, rendered against the real @ez-gform/react",
       "entry.126163357": ["Morning", "Evening"],
       "entry.2074821697": ["Evening"],
       "entry.1384108908": date,
-      "entry.1217411270": date,
-      "entry.309193780": date,
-      "entry.2139776196": date,
+      "entry.1217411270": withTime,
+      "entry.309193780": { month: 3, day: 15 },
+      "entry.2139776196": { month: 3, day: 15, hour: 9, minute: 7 },
       "entry.1979251707": { hour: 14, minute: 5 },
       "entry.1454464036": { hour: 1, minute: 30 },
     };

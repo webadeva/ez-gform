@@ -1,32 +1,16 @@
 // @vitest-environment jsdom
-import { buildSubmitBody, formUrls, parseFormData } from "@ez-gform/core";
+import { buildSubmitBody, formUrls } from "@ez-gform/core";
 import type {
   FormSchema,
   FormValues,
   OtherValue,
   Question,
 } from "@ez-gform/types";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { loadFixtureSchema } from "../__test-utils__/fixtures.js";
 import { generateHtmlForm } from "../generate-html.js";
 
 type Pair = [string, string];
-
-// Not the shared loadFixtureSchema: under the jsdom environment `new URL(...)`
-// is jsdom's URL class, which node's fileURLToPath rejects.
-const fixturesDir = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../core/src/__fixtures__",
-);
-
-const loadFixtureSchema = (slug: string): FormSchema => {
-  const raw = JSON.parse(
-    readFileSync(resolve(fixturesDir, `${slug}.json`), "utf8"),
-  ) as unknown;
-  return parseFormData(raw, { formId: slug });
-};
 
 const OTHER = "__other_option__";
 
@@ -67,10 +51,6 @@ const check = (form: HTMLFormElement, name: string, value: string): void => {
     throw new Error(`no ${name} control with value ${value}`);
   }
   el.checked = true;
-};
-
-const pad2 = (n: number): string => {
-  return String(n).padStart(2, "0");
 };
 
 /**
@@ -129,15 +109,15 @@ const fillForm = (
         setValue(form, `${q.entryId}_month`, String(d.month));
         setValue(form, `${q.entryId}_day`, String(d.day));
         if (d.hour !== undefined) {
-          setValue(form, `${q.entryId}_hour`, pad2(d.hour));
-          setValue(form, `${q.entryId}_minute`, pad2(d.minute ?? 0));
+          setValue(form, `${q.entryId}_hour`, String(d.hour));
+          setValue(form, `${q.entryId}_minute`, String(d.minute ?? 0));
         }
         break;
       }
       case "time": {
         const t = v as { hour: number; minute: number };
-        setValue(form, `${q.entryId}_hour`, pad2(t.hour));
-        setValue(form, `${q.entryId}_minute`, pad2(t.minute));
+        setValue(form, `${q.entryId}_hour`, String(t.hour));
+        setValue(form, `${q.entryId}_minute`, String(t.minute));
         break;
       }
       default:
@@ -157,7 +137,17 @@ const formDataPairs = (form: HTMLFormElement): Pair[] => {
   for (const [key, value] of new FormData(form)) {
     pairs.push([key, typeof value === "string" ? value : value.name]);
   }
-  return sortPairs(pairs);
+  return sortPairs(normalizeNumbers(pairs));
+};
+
+const NUMERIC_KEY = /_(year|month|day|hour|minute)$/;
+
+// Plain number inputs cannot zero-pad, and Google accepts unpadded numbers
+// (docs/research/google-forms-internals.md:59), so compare numerically.
+const normalizeNumbers = (pairs: Pair[]): Pair[] => {
+  return pairs.map(([key, value]): Pair => {
+    return NUMERIC_KEY.test(key) ? [key, String(Number(value))] : [key, value];
+  });
 };
 
 const coreEntries = (
@@ -167,10 +157,20 @@ const coreEntries = (
 ): Pair[] => {
   const body = buildSubmitBody(schema.formId, values, schema);
   return sortPairs(
-    [...body].filter(([key]) => {
-      return !drop.includes(key);
-    }),
+    normalizeNumbers(
+      [...body].filter(([key]) => {
+        return !drop.includes(key);
+      }),
+    ),
   );
+};
+
+// fbzx and partialResponse are per-request tokens, checked separately.
+const TOKEN_KEYS = ["fbzx", "partialResponse"];
+const withoutTokens = (pairs: Pair[]): Pair[] => {
+  return pairs.filter(([key]) => {
+    return !TOKEN_KEYS.includes(key);
+  });
 };
 
 const allTypesValues: FormValues = {
@@ -211,20 +211,19 @@ describe("generateHtmlForm in jsdom: parity with @ez-gform/core", () => {
   });
 
   it("builds the same entries as buildSubmitBody for every question type", () => {
-    const schema = { ...loadFixtureSchema("all-question-types"), fbzx: "-123" };
+    const schema = loadFixtureSchema("all-question-types");
     const form = mount(generateHtmlForm(schema));
     fillForm(form, schema.questions, allTypesValues);
 
     const expected = coreEntries(schema, allTypesValues, [
-      "pageHistory",
-      "partialResponse",
+      ...TOKEN_KEYS,
       "submit",
     ]);
-    expect(formDataPairs(form)).toEqual(expected);
+    expect(withoutTokens(formDataPairs(form))).toEqual(expected);
   });
 
   it("preserves multi-valued keys and the Other sentinel", () => {
-    const schema = { ...loadFixtureSchema("all-question-types"), fbzx: "-123" };
+    const schema = loadFixtureSchema("all-question-types");
     const form = mount(generateHtmlForm(schema));
     fillForm(form, schema.questions, allTypesValues);
     const pairs = formDataPairs(form);
@@ -245,7 +244,7 @@ describe("generateHtmlForm in jsdom: parity with @ez-gform/core", () => {
     ]);
     expect(valuesOf("entry.982140529")).toEqual([OTHER]);
     expect(valuesOf("entry.126163357")).toEqual(["Evening", "Morning"]);
-    expect(valuesOf("entry.1217411270_hour")).toEqual(["07"]);
+    expect(valuesOf("entry.1217411270_hour")).toEqual(["7"]);
   });
 
   it("round-trips values containing quotes, ampersands and angle brackets", () => {
@@ -295,41 +294,105 @@ describe("generateHtmlForm in jsdom: parity with @ez-gform/core", () => {
     );
   });
 
-  // TODO(bug): multi-page HTML should carry pageHistory and partialResponse
-  // hidden inputs so the POST matches buildSubmitBody (core submit.ts:41-47);
-  // generate-html.ts:127-132 only emits fbzx. Also, core always appends
-  // submit=Submit while the generated button has no name, so FormData omits it
-  // (probably harmless for Google).
-  it("documents the multi-page fields the HTML does not carry", () => {
-    const schema = { ...loadFixtureSchema("all-question-types"), fbzx: "-123" };
-    const form = mount(generateHtmlForm(schema));
+  it("carries the multi-page fields and matches buildSubmitBody", () => {
+    const leaked = "-1234567890123456789";
+    const schema = loadFixtureSchema("all-question-types");
+    const form = mount(generateHtmlForm({ ...schema, fbzx: leaked }));
     fillForm(form, schema.questions, allTypesValues);
 
     const html = formDataPairs(form);
+    expect(JSON.stringify(html)).not.toContain(leaked);
+
     const core = coreEntries(schema, allTypesValues);
-    const coreOnly = core.filter((pair) => {
-      return !html.some(([k, v]) => {
-        return k === pair[0] && v === pair[1];
-      });
-    });
-    expect(
-      coreOnly.map(([k]) => {
-        return k;
+    const fbzxOf = (pairs: Pair[]): string | undefined => {
+      return pairs.find(([k]) => {
+        return k === "fbzx";
+      })?.[1];
+    };
+    const partialOf = (pairs: Pair[]): string | undefined => {
+      return pairs.find(([k]) => {
+        return k === "partialResponse";
+      })?.[1];
+    };
+    expect(fbzxOf(html)).toBe("-1000000000000000000");
+    expect(fbzxOf(core)).toMatch(/^-\d{19}$/);
+    expect(partialOf(html)).toBe(JSON.stringify([null, null, fbzxOf(html)]));
+    expect(partialOf(core)).toBe(JSON.stringify([null, null, fbzxOf(core)]));
+    expect(html).toContainEqual(["pageHistory", "0,1,2,3"]);
+    // core always appends submit=Submit; the generated button has no name, so
+    // FormData omits it (harmless for Google).
+    expect(withoutTokens(html)).toEqual(
+      withoutTokens(core).filter(([k]) => {
+        return k !== "submit";
       }),
-    ).toEqual(["pageHistory", "partialResponse", "submit"]);
-    expect(html).toContainEqual(["fbzx", "-123"]);
-    expect(core).toContainEqual(["fbzx", "-123"]);
-    expect(core).toContainEqual(["pageHistory", "0,1,2,3"]);
+    );
   });
 
-  // TODO(bug): numeric hour/minute inputs are not zero-padded, so a user typing
-  // "7" submits hour=7 whereas core encodeValues sends hour=07 (encode.ts pad2);
-  // an optional dropdown also has no blank option, so it always submits the
-  // first choice. The fills above type "07" to compare like with like.
-  it("sends exactly the typed text for hour/minute inputs", () => {
-    const schema = loadFixtureSchema("all-question-types");
+  it("sends no value for an untouched optional dropdown, like core", () => {
+    const schema: FormSchema = {
+      formId: "1FAIpQLSsyntheticformid",
+      title: "T",
+      sections: [],
+      multiPage: false,
+      questions: [
+        {
+          id: "1",
+          entryId: "entry.1",
+          title: "Pick",
+          type: "dropdown",
+          required: false,
+          options: [
+            { value: "One", isOther: false },
+            { value: "Two", isOther: false },
+          ],
+        },
+      ],
+    };
     const form = mount(generateHtmlForm(schema));
-    setValue(form, "entry.1979251707_hour", "7");
-    expect(new FormData(form).get("entry.1979251707_hour")).toBe("7");
+    // The blank choice posts "" (core's appendScalar skips ""; Google ignores it).
+    expect(formDataPairs(form)).toEqual([["entry.1", ""]]);
+    expect(
+      formDataPairs(form).filter(([, v]) => {
+        return v !== "";
+      }),
+    ).toEqual(coreEntries(schema, {}, ["submit"]));
+    setValue(form, "entry.1", "Two");
+    expect(formDataPairs(form)).toEqual(
+      coreEntries(schema, { "entry.1": "Two" }, ["submit"]),
+    );
+  });
+
+  it("blocks an untouched required dropdown until a real option is picked", () => {
+    const schema: FormSchema = {
+      formId: "1FAIpQLSsyntheticformid",
+      title: "T",
+      sections: [],
+      multiPage: false,
+      questions: [
+        {
+          id: "1",
+          entryId: "entry.1",
+          title: "Pick",
+          type: "dropdown",
+          required: true,
+          options: [
+            { value: "One", isOther: false },
+            { value: "Two", isOther: false },
+          ],
+        },
+      ],
+    };
+    const form = mount(generateHtmlForm(schema));
+    const select = form.querySelector("select");
+    if (!select) {
+      throw new Error("no select rendered");
+    }
+    expect(select.checkValidity()).toBe(false);
+    expect(select.validity.valueMissing).toBe(true);
+    select.value = "Two";
+    expect(select.checkValidity()).toBe(true);
+    expect(formDataPairs(form)).toEqual(
+      coreEntries(schema, { "entry.1": "Two" }, ["submit"]),
+    );
   });
 });

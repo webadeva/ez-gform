@@ -280,4 +280,13 @@ describe("generateTypes", () => {
     const source = generateTypes(schemaOf([]));
     expect(valuesBlock(source)).toBe("Values = {\n\n};\n");
   });
+
+  it("does not embed the per-request fbzx token", () => {
+    const token = "-1234567890123456789";
+    const source = generateTypes(
+      schemaOf([question("short_answer")], { fbzx: token }),
+    );
+    expect(source).not.toContain("fbzx");
+    expect(source).not.toContain(token);
+  });
 });

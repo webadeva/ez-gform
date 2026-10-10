@@ -182,7 +182,7 @@ describe("generateReactComponent", () => {
       expect(source).toContain(
         '<input type="checkbox" {...form.registerCheckbox("entry.1", "X")} />',
       );
-      expect(source).toContain('e.target.checked ? { other: "" } : undefined');
+      expect(source).toContain('[...chosen, { other: "" }]');
     });
 
     it("renders a checkboxes question without options", () => {
@@ -290,28 +290,30 @@ describe("generateReactComponent", () => {
       expect(source).toContain("required={true}");
     });
 
-    // TODO(bug): the date input should honour question.date.includeYear and
-    // includeTime (omit year, or add hour/minute). Evidence: renderDate
-    // (generate-react.ts:197-209) never reads question.date, so these two
-    // questions produce the identical year/month/day-only handler.
-    it("currently ignores includeYear and includeTime on date questions", () => {
-      const yearless = generateReactComponent(
+    it("omits the year when includeYear is false", () => {
+      const source = generateReactComponent(
         schemaOf([
           question({
             type: "date",
-            date: { includeTime: true, includeYear: false },
+            date: { includeTime: false, includeYear: false },
           }),
         ]),
       );
-      const plain = generateReactComponent(
+      expect(source).toContain('form.setValue("entry.1", { month, day })');
+      expect(source).not.toContain("year");
+    });
+
+    it("adds a time input and hour/minute when includeTime is true", () => {
+      const source = generateReactComponent(
         schemaOf([
           question({
             type: "date",
-            date: { includeTime: false, includeYear: true },
+            date: { includeTime: true, includeYear: true },
           }),
         ]),
       );
-      expect(jsxBody(yearless)).toBe(jsxBody(plain));
+      expect(source).toContain('type="time"');
+      expect(source).toContain("hour, minute");
     });
 
     // TODO(bug): a time question with time.isDuration should render a
@@ -489,9 +491,13 @@ describe("generateReactComponent", () => {
       expect(source).toContain("export function ContactUsForm()");
     });
 
-    // TODO(bug): `usesOther` and `hasOtherOption` (generate-react.ts:30-36,
-    // 298-303) are dead code: usesOther is only referenced by `void usesOther`
-    // at :318 and is never called, so hasOtherOption and its callback are
-    // unreachable. Remove them or use them to gate the Other rendering.
+    it("does not embed the per-request fbzx token in the schema", () => {
+      const source = generateReactComponent({
+        ...schemaOf([question({})]),
+        fbzx: "-1234567890123456789",
+      });
+      expect(source).not.toContain("fbzx");
+      expect(source).not.toContain("-1234567890123456789");
+    });
   });
 });

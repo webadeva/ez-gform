@@ -65,7 +65,9 @@ export const generateTypes = (
   options: GenerateTypesOptions = {},
 ): string => {
   const name = options.name ?? toPascalCase(schema.title);
-  const schemaJson = JSON.stringify(schema, null, 2);
+  // fbzx is a per-request token; core generates a fresh one when absent.
+  const { fbzx: _, ...embeddedSchema } = schema;
+  const schemaJson = JSON.stringify(embeddedSchema, null, 2);
 
   const usesDate = schema.questions.some((q) => {
     return q.type === "date";

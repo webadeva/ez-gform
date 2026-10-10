@@ -91,11 +91,8 @@ describe("toPascalCase", () => {
     expect(toPascalCase("café menu")).toBe("CafMenu");
   });
 
-  it("keeps a leading digit (currently an invalid TS identifier)", () => {
-    // TODO(bug): toPascalCase should never return a digit-leading name, since
-    // generateTypes emits it as `${name}Schema` only by luck of the suffix but
-    // generateReact emits it as a bare component name (e.g. `2024Booking`).
-    expect(toPascalCase("2024 Booking")).toBe("2024Booking");
+  it("prefixes an underscore when the name would start with a digit", () => {
+    expect(toPascalCase("2024 Booking")).toBe("_2024Booking");
   });
 });
 
@@ -155,10 +152,8 @@ describe("toIdentifier", () => {
     expect(toIdentifier("delete me")).toBe("deleteMe");
   });
 
-  it("does not guard strict-mode binding names outside the reserved list", () => {
-    // TODO(bug): `eval` and `arguments` are not valid binding identifiers in
-    // strict mode, so toIdentifier should suffix them like reserved words.
-    expect(toIdentifier("eval")).toBe("eval");
-    expect(toIdentifier("arguments")).toBe("arguments");
+  it("guards strict-mode binding names like reserved words", () => {
+    expect(toIdentifier("eval")).toBe("eval_");
+    expect(toIdentifier("arguments")).toBe("arguments_");
   });
 });

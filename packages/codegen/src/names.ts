@@ -24,7 +24,8 @@ export const toPascalCase = (input: string): string => {
       return lower.charAt(0).toUpperCase() + lower.slice(1);
     })
     .join("");
-  return pascal.length > 0 ? pascal : "Form";
+  if (pascal.length === 0) return "Form";
+  return /^[0-9]/.test(pascal) ? `_${pascal}` : pascal;
 };
 
 /**
@@ -80,6 +81,8 @@ const RESERVED_WORDS = new Set([
   "null",
   "true",
   "false",
+  "eval",
+  "arguments",
 ]);
 
 /**
