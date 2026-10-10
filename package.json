@@ -1,5 +1,6 @@
 {
   "name": "ez-gform",
+  "homepage": "https://ez-gform.vercel.app/",
   "private": true,
   "packageManager": "pnpm@12.8.1",
   "engines": {

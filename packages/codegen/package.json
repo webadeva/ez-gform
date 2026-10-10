@@ -2,9 +2,9 @@
   "name": "@ez-gform/codegen",
   "version": "0.1.4",
   "description": "Pure code generators (JSON schema, TS types, React component, HTML form) from a parsed Google Form schema.",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/webadeva/ez-gform#readme",
   "bugs": "https://github.com/webadeva/ez-gform/issues",
   "repository": {
     "type": "git",
@@ -13,9 +13,23 @@
   },
   "keywords": [
     "google-forms",
+    "google-form",
+    "gform",
     "ez-gform",
+    "forms",
+    "form-submission",
+    "no-backend",
+    "serverless",
+    "headless-forms",
+    "typescript",
     "codegen",
-    "code-generator"
+    "code-generator",
+    "code-generation",
+    "react-component",
+    "html-form",
+    "json-schema",
+    "typescript-types",
+    "generator"
   ],
   "publishConfig": {
     "access": "public"

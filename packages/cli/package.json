@@ -2,9 +2,9 @@
   "name": "@ez-gform/cli",
   "version": "0.1.4",
   "description": "npx tool: fetch a public Google Form and emit JSON schema, TS types, a React component, or a plain HTML form.",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/webadeva/ez-gform#readme",
   "bugs": "https://github.com/webadeva/ez-gform/issues",
   "repository": {
     "type": "git",
@@ -13,9 +13,24 @@
   },
   "keywords": [
     "google-forms",
+    "google-form",
+    "gform",
     "ez-gform",
+    "forms",
+    "form-submission",
+    "no-backend",
+    "serverless",
+    "headless-forms",
+    "typescript",
     "cli",
-    "codegen"
+    "npx",
+    "command-line",
+    "codegen",
+    "generator",
+    "scaffold",
+    "react-component",
+    "html-form",
+    "json-schema"
   ],
   "publishConfig": {
     "access": "public"

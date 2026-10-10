@@ -2,9 +2,9 @@
   "name": "@ez-gform/types",
   "version": "0.1.4",
   "description": "Shared TypeScript types for the ez-gform packages (form schema, values, submit, codegen).",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/webadeva/ez-gform#readme",
   "bugs": "https://github.com/webadeva/ez-gform/issues",
   "repository": {
     "type": "git",
@@ -13,9 +13,20 @@
   },
   "keywords": [
     "google-forms",
+    "google-form",
+    "gform",
     "ez-gform",
+    "forms",
+    "form-submission",
+    "no-backend",
+    "serverless",
+    "headless-forms",
+    "typescript",
     "types",
-    "typescript"
+    "type-definitions",
+    "form-schema",
+    "schema",
+    "form-values"
   ],
   "publishConfig": {
     "access": "public"

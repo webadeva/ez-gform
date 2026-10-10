@@ -3,6 +3,7 @@
   "version": "0.1.4",
   "private": true,
   "description": "Documentation site and interactive playground for ez-gform.",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
   "scripts": {

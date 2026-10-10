@@ -2,9 +2,9 @@
   "name": "@ez-gform/core",
   "version": "0.1.4",
   "description": "Framework-agnostic Google Forms parser, entry encoder, and submitter.",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/webadeva/ez-gform#readme",
   "bugs": "https://github.com/webadeva/ez-gform/issues",
   "repository": {
     "type": "git",
@@ -13,10 +13,24 @@
   },
   "keywords": [
     "google-forms",
+    "google-form",
+    "gform",
     "ez-gform",
+    "forms",
+    "form-submission",
+    "no-backend",
+    "serverless",
+    "headless-forms",
+    "typescript",
     "form-parser",
     "form-encoder",
-    "no-backend"
+    "form-submit",
+    "prefill-url",
+    "entry-ids",
+    "zero-dependency",
+    "browser",
+    "node",
+    "isomorphic"
   ],
   "publishConfig": {
     "access": "public"

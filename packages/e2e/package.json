@@ -3,6 +3,7 @@
   "version": "0.1.4",
   "private": true,
   "description": "Live network end-to-end tests for ez-gform. Not part of `pnpm test`.",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
   "scripts": {

@@ -1,5 +1,6 @@
 {
   "name": "@ez-gform/tsconfig",
+  "homepage": "https://ez-gform.vercel.app/",
   "version": "0.1.4",
   "private": true,
   "license": "MIT",

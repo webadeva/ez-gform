@@ -2,9 +2,9 @@
   "name": "@ez-gform/react",
   "version": "0.1.4",
   "description": "React hooks for submitting to a Google Form without a backend.",
+  "homepage": "https://ez-gform.vercel.app/",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/webadeva/ez-gform#readme",
   "bugs": "https://github.com/webadeva/ez-gform/issues",
   "repository": {
     "type": "git",
@@ -13,10 +13,22 @@
   },
   "keywords": [
     "google-forms",
+    "google-form",
+    "gform",
     "ez-gform",
+    "forms",
+    "form-submission",
+    "no-backend",
+    "serverless",
+    "headless-forms",
+    "typescript",
     "react",
     "react-hook",
-    "no-backend"
+    "hooks",
+    "use-google-form",
+    "custom-form-ui",
+    "form-state",
+    "form-validation"
   ],
   "publishConfig": {
     "access": "public"
