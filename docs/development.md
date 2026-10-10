@@ -72,10 +72,10 @@ Lines / branches / functions / statements, in percent:
 
 | Package | Lines | Branches | Functions | Statements |
 | ------- | ----- | -------- | --------- | ---------- |
-| core    | 99    | 97       | 100       | 99         |
-| codegen | 98    | 95       | 94        | 98         |
-| react   | 98    | 95       | 100       | 98         |
-| docs    | 98    | 94       | 100       | 98         |
+| core    | 100   | 100      | 100       | 100        |
+| codegen | 100   | 100      | 100       | 100        |
+| react   | 100   | 98       | 100       | 100        |
+| docs    | 100   | 96       | 100       | 99         |
 | cli     | 100   | 96       | 100       | 100        |
 
 `cli` coverage comes from the in-process tests of `src/main.ts`
@@ -99,6 +99,28 @@ submissions with a non-Google fbzx are accepted) or `e2e-cli <ISO timestamp> <ra
 publishable packages in a temp project and runs `next start` for the docs app
 to check `/api/schema`, `/playground` and `/`. The turbo task depends on
 `^build` and `build`, so a manual `pnpm turbo run build` first is not needed.
+
+### Known behaviour and limitations
+
+- Response sheet rendering, pinned in `packages/e2e/src/helpers/submit-values.ts`:
+  Timestamp `M/D/YYYY H:MM:SS` in the sheet's timezone; checkbox and
+  checkbox-grid cells joined with `, ` (an Other text containing a comma is
+  indistinguishable from two options); Radio-with-Other shows the raw other
+  text; date with year `M/D/YYYY`; date and time with year `M/D/YYYY H:MM:SS`;
+  date without year `M/D`; date and time without year `M/D H:MM`; time of day
+  `h:mm:ss AM/PM`; duration `h:mm:ss`. A Google change to any of these breaks
+  the live-submit e2e, not the library.
+- `_second` is accepted for Duration questions and ignored for Time of day.
+- Generated HTML cannot express "at least one" for checkboxes and checkbox
+  grids, so required ones only show the asterisk. An untouched optional
+  dropdown posts `entry.N=` (empty), which Google ignores. Multi-page HTML
+  forms post a constant placeholder `fbzx`, which Google accepts (verified by
+  the placeholder-fbzx e2e).
+- The packed-install e2e needs npm registry access as well as Google, because
+  npm auto-installs the `react` peer dependency of `@ez-gform/react`.
+- Hook behaviour that is by design: a new `initialValues` identity is only
+  picked up by `reset`; the "validating" status is never observable because
+  validation is synchronous; encoded key order follows fill order.
 
 ### Fixtures
 
