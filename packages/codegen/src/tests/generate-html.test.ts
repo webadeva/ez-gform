@@ -100,3 +100,328 @@ describe("generateHtmlForm", () => {
     expect(html).toContain('method="POST"');
   });
 });
+
+const makeQuestion = (overrides: Partial<Question>): Question => {
+  return {
+    id: "1",
+    entryId: "entry.1",
+    title: "Q",
+    type: "short_answer",
+    required: false,
+    ...overrides,
+  };
+};
+
+const makeSchema = (
+  questions: Question[],
+  overrides: Partial<FormSchema> = {},
+): FormSchema => {
+  return {
+    formId: "1FAIpQLSsyntheticformid",
+    title: "Synthetic",
+    questions,
+    sections: [],
+    multiPage: false,
+    ...overrides,
+  };
+};
+
+const htmlFor = (
+  question: Partial<Question>,
+  schemaOverrides: Partial<FormSchema> = {},
+): string => {
+  return generateHtmlForm(
+    makeSchema([makeQuestion(question)], schemaOverrides),
+  );
+};
+
+describe("generateHtmlForm: required attribute", () => {
+  it.each([
+    ["short_answer", '<input type="text"'],
+    ["paragraph", "<textarea"],
+  ] as const)("marks a required %s as required", (type, tag) => {
+    const html = htmlFor({ type, required: true });
+    expect(html).toMatch(new RegExp(`${tag} name="entry.1" required>`));
+    expect(html).toContain("<label>Q *</label>");
+  });
+
+  it.each(["short_answer", "paragraph", "dropdown"] as const)(
+    "omits required on an optional %s",
+    (type) => {
+      const html = htmlFor({ type, required: false, options: [] });
+      expect(html).not.toContain("required");
+      expect(html).toContain("<label>Q</label>");
+    },
+  );
+
+  it("marks a required dropdown's select as required", () => {
+    const html = htmlFor({
+      type: "dropdown",
+      required: true,
+      options: [{ value: "One", isOther: false }],
+    });
+    expect(html).toContain('<select name="entry.1" required>');
+  });
+
+  // TODO(bug): required multiple_choice, checkboxes, linear_scale, grid and
+  // checkbox_grid questions should block submission in the browser; today
+  // generate-html.ts only emits `required` for short_answer, paragraph and
+  // dropdown (renderQuestion cases at :58-83 never use requiredAttr), so the
+  // " *" label is the only hint for these.
+  it("shows the asterisk but no required attribute on choice-style questions", () => {
+    const html = htmlFor({
+      type: "multiple_choice",
+      required: true,
+      options: [{ value: "A", isOther: false }],
+    });
+    expect(html).toContain("<label>Q *</label>");
+    expect(html).not.toContain("required");
+  });
+});
+
+describe("generateHtmlForm: escaping", () => {
+  it("escapes & < > and double quotes in titles, option values and grid labels", () => {
+    const nasty = `A & B <i> "q"`;
+    const escaped = "A &amp; B &lt;i&gt; &quot;q&quot;";
+    const html = generateHtmlForm(
+      makeSchema(
+        [
+          makeQuestion({ title: nasty }),
+          makeQuestion({
+            entryId: "entry.2",
+            type: "multiple_choice",
+            options: [{ value: nasty, isOther: false }],
+          }),
+          makeQuestion({
+            entryId: "entry.3",
+            type: "dropdown",
+            options: [{ value: nasty, isOther: false }],
+          }),
+          makeQuestion({
+            entryId: "entry.4",
+            type: "grid",
+            options: [{ value: nasty, isOther: false }],
+            rows: [{ entryId: "entry.4", label: nasty }],
+          }),
+        ],
+        { title: nasty },
+      ),
+    );
+    expect(html).toContain(`<!-- ${escaped} -->`);
+    expect(html).toContain(`<label>${escaped}</label>`);
+    expect(html).toContain(`value="${escaped}"> ${escaped}</label>`);
+    expect(html).toContain(`<option value="${escaped}">${escaped}</option>`);
+    expect(html).toContain(`<th>${escaped}</th>`);
+    expect(html).not.toContain("<i>");
+    expect(html).not.toContain(nasty);
+  });
+
+  it("cannot be closed early by a title containing the comment terminator", () => {
+    const html = generateHtmlForm(makeSchema([], { title: "x --> <script>" }));
+    expect(html.startsWith("<!-- x --&gt; &lt;script&gt; -->\n")).toBe(true);
+  });
+
+  // Every generated attribute is delimited by double quotes, so a single quote
+  // inside a value cannot terminate an attribute: leaving it unescaped is
+  // harmless (the integration test also round-trips such a value).
+  it("leaves single quotes untouched, which is safe inside double-quoted attributes", () => {
+    const html = generateHtmlForm(
+      makeSchema([
+        makeQuestion({
+          title: "It's",
+          type: "multiple_choice",
+          options: [{ value: "O'Neil", isOther: false }],
+        }),
+      ]),
+    );
+    expect(html).toContain("<label>It's</label>");
+    expect(html).toContain('value="O\'Neil"');
+  });
+
+  // TODO(bug): question.description and schema.description are never rendered,
+  // so descriptions (including their escaping) have no output to assert on.
+  it("does not render question descriptions", () => {
+    const html = htmlFor({ description: "Secret <b>help</b>" });
+    expect(html).not.toContain("Secret");
+  });
+});
+
+describe("generateHtmlForm: question renderers", () => {
+  it("renders dropdown options and handles a missing options array", () => {
+    const html = htmlFor({
+      type: "dropdown",
+      options: [
+        { value: "One", isOther: false },
+        { value: "Two", isOther: false },
+      ],
+    });
+    expect(html).toContain(
+      '<select name="entry.1">\n  <option value="One">One</option>\n  <option value="Two">Two</option>\n</select>',
+    );
+    expect(htmlFor({ type: "dropdown" })).toContain(
+      '<select name="entry.1">\n\n</select>',
+    );
+  });
+
+  it("renders radio and checkbox Other choices with a text field", () => {
+    const options = [
+      { value: "Red", isOther: false },
+      { value: "", isOther: true },
+    ];
+    const radio = htmlFor({ type: "multiple_choice", options });
+    expect(radio).toContain(
+      '<input type="radio" name="entry.1" value="__other_option__"> Other:',
+    );
+    expect(radio).toContain(
+      '<input type="text" name="entry.1.other_option_response">',
+    );
+    const checkbox = htmlFor({ type: "checkboxes", options });
+    expect(checkbox).toContain(
+      '<input type="checkbox" name="entry.1" value="Red">',
+    );
+    expect(checkbox).toContain(
+      '<input type="checkbox" name="entry.1" value="__other_option__">',
+    );
+  });
+
+  it("renders no choices when options are missing", () => {
+    expect(htmlFor({ type: "multiple_choice" })).toBe(
+      htmlFor({ type: "multiple_choice", options: [] }),
+    );
+    expect(htmlFor({ type: "multiple_choice" })).not.toContain("<input");
+  });
+
+  it("renders linear scale from min to max", () => {
+    const html = htmlFor({ type: "linear_scale", scale: { min: 0, max: 2 } });
+    expect(html.match(/type="radio"/g)).toHaveLength(3);
+    expect(html).toContain('<input type="radio" name="entry.1" value="0"> 0');
+    expect(html).toContain('value="2"> 2');
+    expect(html).not.toContain('value="3"');
+  });
+
+  it("defaults linear scale to 1..5 when scale is missing", () => {
+    const html = htmlFor({ type: "linear_scale" });
+    expect(html.match(/type="radio"/g)).toHaveLength(5);
+    expect(html).toContain('value="1"');
+    expect(html).toContain('value="5"');
+    expect(html).not.toContain('value="0"');
+    expect(html).not.toContain('value="6"');
+  });
+
+  it("renders grid rows as radios and checkbox_grid rows as checkboxes", () => {
+    const base = {
+      options: [
+        { value: "Lo", isOther: false },
+        { value: "Hi", isOther: false },
+      ],
+      rows: [
+        { entryId: "entry.10", label: "R1" },
+        { entryId: "entry.11", label: "R2" },
+      ],
+    };
+    const grid = htmlFor({ type: "grid", ...base });
+    expect(grid).toContain(
+      '<tr><th>R1</th><td><input type="radio" name="entry.10" value="Lo"></td><td><input type="radio" name="entry.10" value="Hi"></td></tr>',
+    );
+    expect(grid).toContain('name="entry.11"');
+    const checks = htmlFor({ type: "checkbox_grid", ...base });
+    expect(checks).toContain(
+      '<input type="checkbox" name="entry.10" value="Lo">',
+    );
+    expect(checks).not.toContain('type="radio"');
+  });
+
+  it("renders an empty grid table when rows and options are missing", () => {
+    expect(htmlFor({ type: "grid" })).toContain("<table>\n\n</table>");
+  });
+
+  it("renders date parts according to includeYear and includeTime", () => {
+    const names = (html: string): string[] => {
+      return [...html.matchAll(/name="entry\.1(_\w+)"/g)].map((m) => {
+        return m[1]!;
+      });
+    };
+    expect(names(htmlFor({ type: "date" }))).toEqual([
+      "_year",
+      "_month",
+      "_day",
+    ]);
+    expect(
+      names(
+        htmlFor({
+          type: "date",
+          date: { includeYear: false, includeTime: false },
+        }),
+      ),
+    ).toEqual(["_month", "_day"]);
+    expect(
+      names(
+        htmlFor({
+          type: "date",
+          date: { includeYear: true, includeTime: true },
+        }),
+      ),
+    ).toEqual(["_year", "_month", "_day", "_hour", "_minute"]);
+    expect(
+      names(
+        htmlFor({
+          type: "date",
+          date: { includeYear: false, includeTime: true },
+        }),
+      ),
+    ).toEqual(["_month", "_day", "_hour", "_minute"]);
+  });
+
+  it("renders time as hour and minute inputs", () => {
+    const html = htmlFor({ type: "time" });
+    expect(html).toContain('name="entry.1_hour" placeholder="Hour"');
+    expect(html).toContain('name="entry.1_minute" placeholder="Minute"');
+  });
+
+  it("renders only a comment for file_upload", () => {
+    const html = htmlFor({ type: "file_upload", required: true });
+    expect(html).toContain("<!-- file_upload is not supported");
+    expect(html).not.toContain("<input");
+    expect(html).not.toContain('name="entry.1"');
+  });
+
+  it("falls back to just the label for an unknown question type", () => {
+    const html = htmlFor({ type: "mystery" as Question["type"] });
+    expect(html).toContain("<label>Q</label>\n\n<button");
+    expect(html).not.toContain('name="entry.1"');
+  });
+});
+
+describe("generateHtmlForm: form wrapper", () => {
+  it("uses a placeholder form id when formId is empty", () => {
+    const html = generateHtmlForm(makeSchema([], { formId: "" }));
+    expect(html).toContain(
+      'action="https://docs.google.com/forms/d/e/REPLACE_WITH_FORM_ID/formResponse"',
+    );
+  });
+
+  it("emits a hidden fbzx only for multi-page forms", () => {
+    const single = generateHtmlForm(makeSchema([]));
+    expect(single).not.toContain("fbzx");
+    const multi = generateHtmlForm(
+      makeSchema([], { multiPage: true, fbzx: "-123" }),
+    );
+    expect(multi).toContain('<input type="hidden" name="fbzx" value="-123">');
+    const noToken = generateHtmlForm(makeSchema([], { multiPage: true }));
+    expect(noToken).toContain('<input type="hidden" name="fbzx" value="">');
+  });
+
+  // TODO(bug): multi-page output should also carry pageHistory (0,1,..n-1) and
+  // partialResponse ([null,null,fbzx]) hidden fields like core buildSubmitBody
+  // (packages/core/src/submit.ts:41-47); generate-html.ts:127-132 emits only fbzx.
+  it("emits only fbzx among the multi-page extras", () => {
+    const html = generateHtmlForm(makeSchema([], { multiPage: true }));
+    expect(html).not.toContain("pageHistory");
+    expect(html).not.toContain("partialResponse");
+  });
+
+  it("ends with a submit button and closes the form", () => {
+    const html = generateHtmlForm(makeSchema([]));
+    expect(html).toContain('<button type="submit">Submit</button>\n</form>\n');
+  });
+});
