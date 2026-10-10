@@ -160,10 +160,10 @@ describe("generated React component, rendered against the real @ez-gform/react",
       )!,
       "14:05",
     );
-    await user.type(
-      block("Duration").querySelector<HTMLInputElement>('input[type="time"]')!,
-      "01:30",
-    );
+    const duration = within(block("Duration"));
+    await user.type(duration.getByLabelText("Hours"), "1");
+    await user.type(duration.getByLabelText("Minutes"), "30");
+    await user.type(duration.getByLabelText("Seconds"), "45");
 
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -201,7 +201,7 @@ describe("generated React component, rendered against the real @ez-gform/react",
       "entry.309193780": { month: 3, day: 15 },
       "entry.2139776196": { month: 3, day: 15, hour: 9, minute: 7 },
       "entry.1979251707": { hour: 14, minute: 5 },
-      "entry.1454464036": { hour: 1, minute: 30 },
+      "entry.1454464036": { hour: 1, minute: 30, second: 45 },
     };
 
     const sent = new URLSearchParams(
@@ -232,6 +232,8 @@ describe("generated React component, rendered against the real @ez-gform/react",
     ]);
     expect(entries).toContainEqual(["entry.1384108908_year", "2024"]);
     expect(entries).toContainEqual(["entry.1979251707_minute", "05"]);
+    expect(entries).toContainEqual(["entry.1454464036_second", "45"]);
+    expect(sortedPairs(sent)).toContainEqual(["entry.1454464036_second", "45"]);
     expect(
       sortedPairs(sent).filter(([k]) => {
         return k === "entry.425514760";

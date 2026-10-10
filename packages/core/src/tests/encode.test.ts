@@ -1,7 +1,10 @@
 import type {
+  DateValue,
+  FieldValue,
   FormSchema,
   FormValues,
   Question,
+  TimeValue,
   ValidationIssue,
 } from "@ez-gform/types";
 import { readFileSync } from "node:fs";
@@ -809,5 +812,178 @@ describe("validateValues — required and issue shapes", () => {
         return e.entryId;
       }),
     ).toEqual(expectedMissing);
+  });
+});
+
+describe("validateValues — partially filled date and time", () => {
+  const fixture = parseFormData(loadFixture("all-question-types"));
+  const pick = (title: string): Question => {
+    const found = fixture.questions.find((x) => {
+      return x.title === title;
+    });
+    if (!found) throw new Error(`fixture question missing: ${title}`);
+    return found;
+  };
+  const schemaWith = (question: Question, required: boolean): FormSchema => {
+    return { ...fixture, questions: [{ ...question, required }] };
+  };
+  const missing = (question: Question, value: Partial<DateValue>): string[] => {
+    const r = validateValues(
+      { [question.entryId]: value as FieldValue },
+      schemaWith(question, true),
+    );
+    return r.ok
+      ? []
+      : r.errors.map((e) => {
+          return e.entryId;
+        });
+  };
+
+  const cases: {
+    title: string;
+    full: DateValue | TimeValue;
+    partials: [string, Partial<DateValue>][];
+  }[] = [
+    {
+      title: "Date without year",
+      full: { month: 3, day: 4 },
+      partials: [
+        ["no day", { month: 3 }],
+        ["no month", { day: 4 }],
+      ],
+    },
+    {
+      title: "Date with year",
+      full: { year: 2026, month: 3, day: 4 },
+      partials: [
+        ["no year", { month: 3, day: 4 }],
+        ["no day", { year: 2026, month: 3 }],
+        ["no month", { year: 2026, day: 4 }],
+      ],
+    },
+    {
+      title: "Date with time without year",
+      full: { month: 3, day: 4, hour: 5, minute: 6 },
+      partials: [
+        ["no hour", { month: 3, day: 4, minute: 6 }],
+        ["no minute", { month: 3, day: 4, hour: 5 }],
+        ["no time", { month: 3, day: 4 }],
+        ["no day", { month: 3, hour: 5, minute: 6 }],
+      ],
+    },
+    {
+      title: "Date with year and time",
+      full: { year: 2026, month: 3, day: 4, hour: 5, minute: 6 },
+      partials: [
+        ["no year", { month: 3, day: 4, hour: 5, minute: 6 }],
+        ["no hour", { year: 2026, month: 3, day: 4, minute: 6 }],
+        ["no minute", { year: 2026, month: 3, day: 4, hour: 5 }],
+        ["no month", { year: 2026, day: 4, hour: 5, minute: 6 }],
+      ],
+    },
+    {
+      title: "Time of day",
+      full: { hour: 5, minute: 6 },
+      partials: [
+        ["no minute", { hour: 5 }],
+        ["no hour", { minute: 6 }],
+      ],
+    },
+    {
+      title: "Duration",
+      full: { hour: 5, minute: 6 },
+      partials: [
+        ["no minute", { hour: 5 }],
+        ["no hour", { minute: 6 }],
+      ],
+    },
+  ];
+
+  for (const c of cases) {
+    describe(c.title, () => {
+      const question = pick(c.title);
+      it("a fully filled required value is ok", () => {
+        expect(missing(question, c.full)).toEqual([]);
+      });
+      it.each(c.partials)("required, %s -> reported missing", (_, value) => {
+        expect(missing(question, value)).toEqual([question.entryId]);
+      });
+      it("not required: a partial value adds no required error", () => {
+        const [, partial] = c.partials[0]!;
+        expect(
+          validateValues(
+            { [question.entryId]: partial as FieldValue },
+            schemaWith(question, false),
+          ),
+        ).toEqual({ ok: true });
+      });
+    });
+  }
+
+  it("a zero hour or minute counts as filled", () => {
+    expect(missing(pick("Time of day"), { hour: 0, minute: 0 })).toEqual([]);
+  });
+});
+
+describe("encodeValues and validateValues — duration seconds", () => {
+  it.each([
+    [5, "05"],
+    [45, "45"],
+    [0, "00"],
+  ])("encodes second %i as _second=%s", (second, padded) => {
+    const params = encodeValues({ "entry.1": { hour: 1, minute: 23, second } });
+    expect(params.get("entry.1_second")).toBe(padded);
+    expect(params.get("entry.1_hour")).toBe("01");
+    expect(params.get("entry.1_minute")).toBe("23");
+  });
+
+  it("without second there is no _second key", () => {
+    const params = encodeValues({ "entry.1": { hour: 1, minute: 23 } });
+    expect([...params.keys()]).toEqual(["entry.1_hour", "entry.1_minute"]);
+  });
+
+  it("a date value never emits _second", () => {
+    const params = encodeValues({
+      "entry.1": { month: 1, day: 2, second: 9 },
+    });
+    expect(params.has("entry.1_second")).toBe(false);
+  });
+
+  it("a required duration with second validates; second is not required", () => {
+    const schema = parseFormData(loadFixture("all-question-types"));
+    const duration = schema.questions.find((x) => {
+      return x.title === "Duration";
+    });
+    if (!duration) throw new Error("fixture question missing: Duration");
+    const only = { ...schema, questions: [{ ...duration, required: true }] };
+    expect(
+      validateValues(
+        { [duration.entryId]: { hour: 1, minute: 2, second: 3 } },
+        only,
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      validateValues({ [duration.entryId]: { hour: 1, minute: 2 } }, only),
+    ).toEqual({ ok: true });
+  });
+});
+
+describe("encodeValues — time with an undefined part", () => {
+  const partial = (v: { hour?: number; minute?: number }): FieldValue => {
+    return v as unknown as FieldValue;
+  };
+
+  it("hour undefined encodes only _minute", () => {
+    const params = encodeValues({
+      "entry.1": partial({ hour: undefined, minute: 5 }),
+    });
+    expect([...params.entries()]).toEqual([["entry.1_minute", "05"]]);
+  });
+
+  it("minute undefined encodes only _hour", () => {
+    const params = encodeValues({
+      "entry.1": partial({ hour: 7, minute: undefined }),
+    });
+    expect([...params.entries()]).toEqual([["entry.1_hour", "07"]]);
   });
 });

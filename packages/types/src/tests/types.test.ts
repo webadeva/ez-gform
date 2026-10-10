@@ -116,9 +116,18 @@ describe("value types", () => {
     >();
   });
 
-  it("TimeValue and OtherValue are fully required", () => {
-    expectTypeOf<TimeValue>().toEqualTypeOf<{ hour: number; minute: number }>();
+  it("TimeValue requires hour and minute; OtherValue is fully required", () => {
+    expectTypeOf<TimeValue>().toEqualTypeOf<{
+      hour: number;
+      minute: number;
+      second?: number;
+    }>();
     expectTypeOf<OtherValue>().toEqualTypeOf<{ other: string }>();
+  });
+
+  it("TimeValue.second is optional", () => {
+    expectTypeOf<TimeValue["second"]>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<{ hour: number; minute: number }>().toExtend<TimeValue>();
   });
 
   it("FieldValue is exactly the documented union", () => {
@@ -153,8 +162,6 @@ describe("value types", () => {
   it("FormValues maps entry ids to FieldValue", () => {
     expectTypeOf<FormValues>().toEqualTypeOf<Record<string, FieldValue>>();
   });
-
-  // TODO(bug): FieldValue should distinguish a time answer from a duration answer (Question.time.isDuration has no value-side counterpart).
 });
 
 describe("submit types", () => {

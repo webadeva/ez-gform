@@ -316,17 +316,30 @@ describe("generateReactComponent", () => {
       expect(source).toContain("hour, minute");
     });
 
-    // TODO(bug): a time question with time.isDuration should render a
-    // duration input (hours/minutes/seconds). Evidence: renderTime
-    // (generate-react.ts:211-223) never reads question.time.
-    it("currently ignores isDuration on time questions", () => {
+    it("renders a time of day as one time input and a duration as hour/minute/second inputs", () => {
       const duration = generateReactComponent(
         schemaOf([question({ type: "time", time: { isDuration: true } })]),
       );
       const clock = generateReactComponent(
         schemaOf([question({ type: "time", time: { isDuration: false } })]),
       );
-      expect(jsxBody(duration)).toBe(jsxBody(clock));
+      expect(jsxBody(clock)).toContain('type="time"');
+      expect(jsxBody(clock)).not.toContain("second");
+      expect(jsxBody(duration)).not.toContain('type="time"');
+      expect(jsxBody(duration)).toContain('aria-label="Hours"');
+      expect(jsxBody(duration)).toContain('aria-label="Minutes"');
+      expect(jsxBody(duration)).toContain('aria-label="Seconds"');
+      expect(jsxBody(duration)).toContain("second:");
+      const required = generateReactComponent(
+        schemaOf([
+          question({
+            type: "time",
+            required: true,
+            time: { isDuration: true },
+          }),
+        ]),
+      );
+      expect(jsxBody(required).match(/required=\{true\}/g)).toHaveLength(3);
     });
 
     it("type-checks a component using every question type together", () => {

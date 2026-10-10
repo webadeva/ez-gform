@@ -126,8 +126,19 @@ const renderQuestion = (question: Question): string => {
       }
       return `${label}\n${inputs.join("\n")}`;
     }
-    case "time":
-      return `${label}\n<input type="number" ${attr("name", `${question.entryId}_hour`)} placeholder="Hour"${requiredAttr}>\n<input type="number" ${attr("name", `${question.entryId}_minute`)} placeholder="Minute"${requiredAttr}>`;
+    case "time": {
+      const inputs = [
+        `<input type="number" ${attr("name", `${question.entryId}_hour`)} placeholder="Hour"${requiredAttr}>`,
+        `<input type="number" ${attr("name", `${question.entryId}_minute`)} placeholder="Minute"${requiredAttr}>`,
+      ];
+      // Google only reads _second for a Duration question.
+      if (question.time?.isDuration) {
+        inputs.push(
+          `<input type="number" ${attr("name", `${question.entryId}_second`)} placeholder="Second"${requiredAttr}>`,
+        );
+      }
+      return `${label}\n${inputs.join("\n")}`;
+    }
     case "file_upload":
       return `${label}\n<!-- file_upload is not supported by the Forms API without sign-in; no input rendered -->`;
     default:

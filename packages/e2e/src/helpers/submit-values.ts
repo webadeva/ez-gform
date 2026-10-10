@@ -158,8 +158,10 @@ export const buildVariant = (
   );
   set(
     "Duration",
-    a ? { hour: 1, minute: 23 } : { hour: 12, minute: 0 },
-    a ? "1:23:00" : "12:00:00",
+    a
+      ? { hour: 1, minute: 23, second: 45 }
+      : { hour: 12, minute: 0, second: 5 },
+    a ? "1:23:45" : "12:00:05",
   );
 
   return { values, expected };

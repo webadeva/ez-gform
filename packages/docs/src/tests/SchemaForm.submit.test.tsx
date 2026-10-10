@@ -317,7 +317,7 @@ describe("SchemaForm submit: full fixture end-to-end", () => {
 
     // times
     await typeParts("Time of day", { Hour: 14, Minute: 30 });
-    await typeParts("Duration", { Hour: 1, Minute: 2 });
+    await typeParts("Duration", { Hours: 1, Minutes: 2, Seconds: 45 });
 
     const expected: FormValues = {
       "entry.2028813558": "Hello & goodbye",
@@ -341,7 +341,7 @@ describe("SchemaForm submit: full fixture end-to-end", () => {
       "entry.309193780": { month: 12, day: 25 },
       "entry.2139776196": { month: 1, day: 31, hour: 23, minute: 59 },
       "entry.1979251707": { hour: 14, minute: 30 },
-      "entry.1454464036": { hour: 1, minute: 2 },
+      "entry.1454464036": { hour: 1, minute: 2, second: 45 },
     };
 
     await user.click(submitButton());

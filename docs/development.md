@@ -94,7 +94,8 @@ built CLI `submit`) and verifies all three in the linked response sheet's
 anonymous CSV export, so three rows land in the sheet every run. The "Short answer required" column carries a marker of the
 form `e2e-core <ISO timestamp> <random id>` (core submission),
 `e2e-placeholder-fbzx <ISO timestamp> <random id>` (proves multi-page
-submissions with a non-Google fbzx are accepted) or `e2e-cli <ISO timestamp> <random id>` (CLI submission). It also packs and installs the five
+submissions with a non-Google fbzx are accepted) or `e2e-cli <ISO timestamp> <random id>` (CLI submission). The sheet renders a Duration answer as `h:mm:ss`
+(`{hour:1, minute:23, second:45}` is `1:23:45`; `_second` is ignored on Time of day). It also packs and installs the five
 publishable packages in a temp project and runs `next start` for the docs app
 to check `/api/schema`, `/playground` and `/`. The turbo task depends on
 `^build` and `build`, so a manual `pnpm turbo run build` first is not needed.

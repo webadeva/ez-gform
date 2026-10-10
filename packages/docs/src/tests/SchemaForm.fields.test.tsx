@@ -394,35 +394,89 @@ describe("SchemaForm date", () => {
 });
 
 describe("SchemaForm time", () => {
-  it("defaults the other part to 0 and fills hour and minute", async () => {
-    const user = userEvent.setup();
-    render(
-      <SchemaForm
-        schema={makeSchema(makeQuestion({ title: "At", type: "time" }))}
-      />,
+  const timeSchema = (overrides: Partial<Question> = {}): FormSchema => {
+    return makeSchema(
+      makeQuestion({ title: "At", type: "time", ...overrides }),
     );
+  };
+
+  it("leaves the untouched part empty and fills hour and minute", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={timeSchema()} />);
     await user.type(screen.getByLabelText("Hour"), "8");
     expect(screen.getByLabelText("Hour")).toHaveValue(8);
-    expect(screen.getByLabelText("Minute")).toHaveValue(0);
-    await user.clear(screen.getByLabelText("Minute"));
+    expect(screen.getByLabelText("Minute")).toHaveValue(null);
     await user.type(screen.getByLabelText("Minute"), "30");
     expect(screen.getByLabelText("Minute")).toHaveValue(30);
     expect(screen.getByLabelText("Hour")).toHaveValue(8);
+    expect(screen.queryByLabelText("Seconds")).toBeNull();
     const body = await submitAndRead(user);
     expect(body.get("entry.1_hour")).toBe("08");
     expect(body.get("entry.1_minute")).toBe("30");
+    expect(body.has("entry.1_second")).toBe(false);
   });
 
-  it("updates the minute first and defaults hour to 0", async () => {
+  it("types the minute first without seeding the hour", async () => {
     const user = userEvent.setup();
-    render(
-      <SchemaForm
-        schema={makeSchema(makeQuestion({ title: "At", type: "time" }))}
-      />,
-    );
+    render(<SchemaForm schema={timeSchema()} />);
     await user.type(screen.getByLabelText("Minute"), "5");
-    expect(screen.getByLabelText("Hour")).toHaveValue(0);
+    expect(screen.getByLabelText("Hour")).toHaveValue(null);
     expect(screen.getByLabelText("Minute")).toHaveValue(5);
+  });
+
+  it("clears the value when every part is emptied", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={timeSchema()} />);
+    await user.type(screen.getByLabelText("Hour"), "8");
+    await user.clear(screen.getByLabelText("Hour"));
+    expect(screen.getByLabelText("Hour")).toHaveValue(null);
+    const body = await submitAndRead(user);
+    expect(body.has("entry.1_hour")).toBe(false);
+  });
+
+  it("fails validation for a required time with nothing typed", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={timeSchema({ required: true })} />);
+    await user.click(
+      screen.getByRole("button", { name: /submit to google form/i }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await screen.findAllByRole("listitem")).not.toHaveLength(0);
+  });
+
+  it("fails validation for a required time with only the hour typed", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={timeSchema({ required: true })} />);
+    await user.type(screen.getByLabelText("Hour"), "8");
+    await user.click(
+      screen.getByRole("button", { name: /submit to google form/i }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("renders Hours/Minutes/Seconds for a duration and posts seconds", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={timeSchema({ time: { isDuration: true } })} />);
+    expect(screen.queryByLabelText("Hour")).toBeNull();
+    await user.type(screen.getByLabelText("Hours"), "1");
+    await user.type(screen.getByLabelText("Minutes"), "23");
+    await user.type(screen.getByLabelText("Seconds"), "5");
+    const body = await submitAndRead(user);
+    expect(body.get("entry.1_hour")).toBe("01");
+    expect(body.get("entry.1_minute")).toBe("23");
+    expect(body.get("entry.1_second")).toBe("05");
+  });
+
+  it("omits seconds from a duration when the field is left empty", async () => {
+    const user = userEvent.setup();
+    render(<SchemaForm schema={timeSchema({ time: { isDuration: true } })} />);
+    await user.type(screen.getByLabelText("Hours"), "1");
+    await user.type(screen.getByLabelText("Minutes"), "2");
+    await user.type(screen.getByLabelText("Seconds"), "9");
+    await user.clear(screen.getByLabelText("Seconds"));
+    const body = await submitAndRead(user);
+    expect(body.get("entry.1_minute")).toBe("02");
+    expect(body.has("entry.1_second")).toBe(false);
   });
 });
 

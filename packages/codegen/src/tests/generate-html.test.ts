@@ -62,6 +62,9 @@ const expectedNames = (schema: FormSchema): Set<string> => {
       case "time":
         names.add(`${question.entryId}_hour`);
         names.add(`${question.entryId}_minute`);
+        if (question.time?.isDuration) {
+          names.add(`${question.entryId}_second`);
+        }
         break;
       case "file_upload":
         break;
@@ -433,6 +436,20 @@ describe("generateHtmlForm: question renderers", () => {
     const html = htmlFor({ type: "time" });
     expect(html).toContain('name="entry.1_hour" placeholder="Hour"');
     expect(html).toContain('name="entry.1_minute" placeholder="Minute"');
+  });
+
+  it("adds a second input only for a duration", () => {
+    const clock = htmlFor({ type: "time", time: { isDuration: false } });
+    expect(clock).not.toContain("_second");
+    const duration = htmlFor({
+      type: "time",
+      required: true,
+      time: { isDuration: true },
+    });
+    expect(duration).toContain('name="entry.1_hour" placeholder="Hour"');
+    expect(duration).toContain('name="entry.1_minute" placeholder="Minute"');
+    expect(duration).toContain('name="entry.1_second" placeholder="Second"');
+    expect(duration.match(/type="number"[^>]* required>/g)).toHaveLength(3);
   });
 
   it("renders only a comment for file_upload", () => {

@@ -4,6 +4,7 @@ import type {
   FormSchema,
   FormValues,
   OtherValue,
+  Question,
   TimeValue,
   ValidationIssue,
   ValidationResult,
@@ -137,13 +138,37 @@ const encodeOne = (
   }
 
   if (isTimeValue(value)) {
-    appendScalar(params, `${entryId}_hour`, pad2(value.hour));
-    appendScalar(params, `${entryId}_minute`, pad2(value.minute));
+    if (value.hour !== undefined)
+      appendScalar(params, `${entryId}_hour`, pad2(value.hour));
+    if (value.minute !== undefined)
+      appendScalar(params, `${entryId}_minute`, pad2(value.minute));
+    if (value.second !== undefined)
+      appendScalar(params, `${entryId}_second`, pad2(value.second));
     return;
   }
 
   // Otherwise: grid row map, Record<string, string | string[]>.
   appendGridMap(params, value);
+};
+
+const hasNumbers = (v: object, keys: string[]): boolean => {
+  const record = v as Record<string, unknown>;
+  return keys.every((k) => {
+    return typeof record[k] === "number";
+  });
+};
+
+/**
+ * A date or time answer counts as empty unless every part the question
+ * collects is present: month and day, plus year when `includeYear` and hour
+ * and minute when `includeTime`; a time needs hour and minute.
+ */
+const isIncompleteDateTime = (q: Question, v: object): boolean => {
+  if (q.type === "time") return !hasNumbers(v, ["hour", "minute"]);
+  const keys = ["month", "day"];
+  if (q.date?.includeYear) keys.push("year");
+  if (q.date?.includeTime) keys.push("hour", "minute");
+  return !hasNumbers(v, keys);
 };
 
 /**
@@ -208,7 +233,9 @@ export const validateValues = (
         (isOtherValue(v) && v.other === "") ||
         (typeof v === "object" &&
           !Array.isArray(v) &&
-          Object.keys(v).length === 0);
+          ((q.type === "date" || q.type === "time") && !q.rows?.length
+            ? isIncompleteDateTime(q, v)
+            : Object.keys(v).length === 0));
       if (isEmpty) {
         errors.push({
           entryId: id,

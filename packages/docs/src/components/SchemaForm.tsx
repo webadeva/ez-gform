@@ -427,10 +427,28 @@ const TimeField = ({
 }) => {
   const currentValue = form.values[question.entryId];
   const timeValue = isTimeValue(currentValue) ? currentValue : undefined;
+  const isDuration = question.time?.isDuration ?? false;
 
-  const patch = (next: Partial<TimeValue>) => {
-    const base: TimeValue = timeValue ?? { hour: 0, minute: 0 };
-    form.setValue(question.entryId, { ...base, ...next });
+  // Empty parts stay `undefined` (never seeded with 0), so a required time
+  // with a missing part fails validation instead of submitting 00.
+  const patch = (
+    next: Partial<Record<keyof TimeValue, number | undefined>>,
+  ) => {
+    const base = (timeValue ?? {
+      hour: undefined,
+      minute: undefined,
+    }) as Partial<TimeValue>;
+    const merged = { ...base, ...next };
+    const allEmpty = Object.values(merged).every((v) => {
+      return v === undefined;
+    });
+    form.setValue(
+      question.entryId,
+      allEmpty ? undefined : (merged as TimeValue),
+    );
+  };
+  const part = (raw: string) => {
+    return raw === "" ? undefined : Number(raw);
   };
 
   return (
@@ -442,22 +460,39 @@ const TimeField = ({
       <div className="option">
         <input
           type="number"
-          aria-label="Hour"
+          aria-label={isDuration ? "Hours" : "Hour"}
           placeholder="HH"
+          min={0}
+          max={23}
           value={timeValue?.hour ?? ""}
           onChange={(event) => {
-            patch({ hour: Number(event.target.value) });
+            patch({ hour: part(event.target.value) });
           }}
         />
         <input
           type="number"
-          aria-label="Minute"
+          aria-label={isDuration ? "Minutes" : "Minute"}
           placeholder="mm"
+          min={0}
+          max={59}
           value={timeValue?.minute ?? ""}
           onChange={(event) => {
-            patch({ minute: Number(event.target.value) });
+            patch({ minute: part(event.target.value) });
           }}
         />
+        {isDuration && (
+          <input
+            type="number"
+            aria-label="Seconds"
+            placeholder="ss"
+            min={0}
+            max={59}
+            value={timeValue?.second ?? ""}
+            onChange={(event) => {
+              patch({ second: part(event.target.value) });
+            }}
+          />
+        )}
       </div>
     </div>
   );

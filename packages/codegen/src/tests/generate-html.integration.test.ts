@@ -115,9 +115,12 @@ const fillForm = (
         break;
       }
       case "time": {
-        const t = v as { hour: number; minute: number };
+        const t = v as { hour: number; minute: number; second?: number };
         setValue(form, `${q.entryId}_hour`, String(t.hour));
         setValue(form, `${q.entryId}_minute`, String(t.minute));
+        if (q.time?.isDuration) {
+          setValue(form, `${q.entryId}_second`, String(t.second ?? 0));
+        }
         break;
       }
       default:
@@ -140,7 +143,7 @@ const formDataPairs = (form: HTMLFormElement): Pair[] => {
   return sortPairs(normalizeNumbers(pairs));
 };
 
-const NUMERIC_KEY = /_(year|month|day|hour|minute)$/;
+const NUMERIC_KEY = /_(year|month|day|hour|minute|second)$/;
 
 // Plain number inputs cannot zero-pad, and Google accepts unpadded numbers
 // (docs/research/google-forms-internals.md:59), so compare numerically.
@@ -195,7 +198,7 @@ const allTypesValues: FormValues = {
   "entry.309193780": { month: 12, day: 31 },
   "entry.2139776196": { month: 3, day: 4, hour: 23, minute: 0 },
   "entry.1979251707": { hour: 9, minute: 30 },
-  "entry.1454464036": { hour: 14, minute: 0 },
+  "entry.1454464036": { hour: 14, minute: 7, second: 9 },
 };
 
 afterEach(() => {
@@ -245,6 +248,8 @@ describe("generateHtmlForm in jsdom: parity with @ez-gform/core", () => {
     expect(valuesOf("entry.982140529")).toEqual([OTHER]);
     expect(valuesOf("entry.126163357")).toEqual(["Evening", "Morning"]);
     expect(valuesOf("entry.1217411270_hour")).toEqual(["7"]);
+    expect(valuesOf("entry.1454464036_second")).toEqual(["9"]);
+    expect(valuesOf("entry.1979251707_second")).toEqual([]);
   });
 
   it("round-trips values containing quotes, ampersands and angle brackets", () => {

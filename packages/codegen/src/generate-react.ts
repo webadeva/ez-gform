@@ -238,7 +238,33 @@ const renderDate = (question: Question): string => {
       />`;
 };
 
+const renderDuration = (question: Question): string => {
+  const entryId = q(question.entryId);
+  const required = question.required ? "true" : "false";
+  const isObject = `typeof current === "object" && current !== null && !Array.isArray(current)`;
+  const part = (key: string, label: string, max: number): string => {
+    return `<input
+        type="number"
+        min={0}
+        max={${max}}
+        aria-label="${label}"
+        required={${required}}
+        onChange={(e) => {
+          const current = form.values[${entryId}];
+          const time = ${isObject} && "hour" in current && "minute" in current ? { hour: Number(current.hour), minute: Number(current.minute), second: Number("second" in current ? (current.second ?? 0) : 0) } : { hour: 0, minute: 0, second: 0 };
+          form.setValue(${entryId}, { ...time, ${key}: Number(e.target.value) });
+        }}
+      />`;
+  };
+  return [
+    part("hour", "Hours", 23),
+    part("minute", "Minutes", 59),
+    part("second", "Seconds", 59),
+  ].join("\n      ");
+};
+
 const renderTime = (question: Question): string => {
+  if (question.time?.isDuration) return renderDuration(question);
   const entryId = q(question.entryId);
   return `<input
         type="time"
