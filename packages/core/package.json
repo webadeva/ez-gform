@@ -3,6 +3,11 @@
   "version": "0.1.4",
   "description": "Framework-agnostic Google Forms parser, entry encoder, and submitter.",
   "homepage": "https://ez-gform.vercel.app/",
+  "author": {
+    "name": "Gobind Singh",
+    "email": "thesinghgobind@gmail.com",
+    "url": "https://www.thegobindsingh.com/"
+  },
   "type": "module",
   "license": "MIT",
   "bugs": "https://github.com/webadeva/ez-gform/issues",

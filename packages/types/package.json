@@ -3,6 +3,11 @@
   "version": "0.1.4",
   "description": "Shared TypeScript types for the ez-gform packages (form schema, values, submit, codegen).",
   "homepage": "https://ez-gform.vercel.app/",
+  "author": {
+    "name": "Gobind Singh",
+    "email": "thesinghgobind@gmail.com",
+    "url": "https://www.thegobindsingh.com/"
+  },
   "type": "module",
   "license": "MIT",
   "bugs": "https://github.com/webadeva/ez-gform/issues",
