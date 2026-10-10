@@ -27,8 +27,6 @@ Consolidated bug and follow-up list from the 2026-10 test rebuild.
 - `loadFixtureSchema` (`packages/codegen/src/__test-utils__/fixtures.ts`) fails under jsdom because `import.meta.url` is not a `file:` URL there; the HTML integration test carries a local copy.
 - codegen `testTimeout` raised to 120000 because `ts.createProgram` type-check tests took 23-53s under parallel turbo load.
 
-## From Phase C (react, docs)
-
 ## From Phase C (react, docs), remaining
 
 - By design, not changed: a new `initialValues` identity is only picked up by `reset`; the "validating" status is never observable (validation is synchronous); encoded key order follows fill order.
