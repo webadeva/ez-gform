@@ -267,14 +267,21 @@ describe("submitForm", () => {
     });
   });
 
-  it("rejects (currently) for an invalid formId and never calls fetch", async () => {
+  it("resolves to an error result for an invalid formId and never calls fetch", async () => {
     const fakeFetch = vi.fn();
-    await expect(
-      submitForm("bad", {}, { fetch: fakeFetch as unknown as typeof fetch }),
-    ).rejects.toThrow(/not a recognizable Google Form id/);
+    const result = await submitForm(
+      "bad",
+      {},
+      {
+        fetch: fakeFetch as unknown as typeof fetch,
+      },
+    );
+    expect(result.status).toBe("error");
+    expect((result as { error: Error }).error.message).toMatch(
+      /not a recognizable Google Form id/,
+    );
     expect(fakeFetch).not.toHaveBeenCalled();
   });
-  // TODO(bug): submitForm with an invalid formId should resolve to {status: "error"} instead of rejecting.
 
   it("encodes file_upload question values from the live fixture", async () => {
     const raw: unknown = JSON.parse(

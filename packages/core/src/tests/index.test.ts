@@ -49,7 +49,15 @@ describe("public exports", () => {
     );
   });
 
-  // TODO(bug): VERSION should match the version in packages/core/package.json (index.ts exports "0.1.0" while package.json is 0.1.4).
+  it("exports VERSION equal to the package.json version", () => {
+    const pkg = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL("../../package.json", import.meta.url)),
+        "utf8",
+      ),
+    ) as { version: string };
+    expect(core.VERSION).toBe(pkg.version);
+  });
 });
 
 describe("package.json", () => {

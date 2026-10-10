@@ -268,12 +268,23 @@ describe("encodeValues — edge cases", () => {
     expect(encodeValues({ "entry.1": 0 }).getAll("entry.1")).toEqual(["0"]);
   });
 
-  it("pins {other: ''}: emits the sentinel without an other_option_response", () => {
+  it("emits nothing for {other: ''}", () => {
     const params = encodeValues({ "entry.1": { other: "" } });
-    expect(params.getAll("entry.1")).toEqual(["__other_option__"]);
+    expect(params.has("entry.1")).toBe(false);
     expect(params.has("entry.1.other_option_response")).toBe(false);
   });
-  // TODO(bug): an Other value with an empty text should not emit the __other_option__ sentinel (it selects Other with no response text).
+
+  it("drops only the empty Other from a checkbox array", () => {
+    const params = encodeValues({ "entry.1": ["A", { other: "" }, "B"] });
+    expect(params.getAll("entry.1")).toEqual(["A", "B"]);
+    expect(params.has("entry.1.other_option_response")).toBe(false);
+  });
+
+  it("sends a whitespace-only Other verbatim", () => {
+    const params = encodeValues({ "entry.1": { other: " " } });
+    expect(params.getAll("entry.1")).toEqual(["__other_option__"]);
+    expect(params.get("entry.1.other_option_response")).toBe(" ");
+  });
 
   it("skips empty strings inside a checkbox array", () => {
     const params = encodeValues({ "entry.1": ["A", "", "B"] });
@@ -691,17 +702,83 @@ describe("validateValues — required and issue shapes", () => {
     ).toEqual({ ok: true });
   });
 
-  it("pins {other: ''} as a filled required answer", () => {
+  it("reports a required question answered with {other: ''} as missing", () => {
+    expect(
+      errorsOf(
+        { "entry.1": { other: "" } },
+        schemaOf(q({ entryId: "entry.1" })),
+      ),
+    ).toEqual([
+      {
+        entryId: "entry.1",
+        message:
+          'Missing required answer for question "Title entry.1" (entry.1)',
+      },
+    ]);
+  });
+
+  it("treats a checkbox array of only empty Others as missing, but not one with a real selection", () => {
+    const schema = schemaOf(q({ entryId: "entry.1", type: "checkboxes" }));
+    expect(errorsOf({ "entry.1": [{ other: "" }] }, schema)).toEqual([
+      {
+        entryId: "entry.1",
+        message:
+          'Missing required answer for question "Title entry.1" (entry.1)',
+      },
+    ]);
+    expect(validateValues({ "entry.1": ["A", { other: "" }] }, schema)).toEqual(
+      { ok: true },
+    );
+  });
+
+  it("accepts a required question answered with a non-empty Other", () => {
     expect(
       validateValues(
-        { "entry.1": { other: "" } },
+        { "entry.1": { other: "x" } },
         schemaOf(q({ entryId: "entry.1" })),
       ),
     ).toEqual({ ok: true });
   });
-  // TODO(bug): a required question answered with an empty Other value ({ other: '' }) should be reported as a missing required answer.
 
-  // TODO(bug): a required grid answered with a nested row map keyed by the question entryId should satisfy validation for all rows, matching what encodeValues accepts.
+  const nestedGrid = schemaOf(
+    q({
+      entryId: "entry.10",
+      title: "Grid",
+      type: "grid",
+      rows: [
+        { entryId: "entry.10", label: "A" },
+        { entryId: "entry.11", label: "B" },
+      ],
+    }),
+  );
+
+  it("accepts a nested row map keyed by the question entryId with every row filled", () => {
+    expect(
+      validateValues(
+        { "entry.10": { "entry.10": "x", "entry.11": "y" } },
+        nestedGrid,
+      ),
+    ).toEqual({ ok: true });
+  });
+
+  it("reports the missing required row of a nested row map", () => {
+    expect(errorsOf({ "entry.10": { "entry.10": "x" } }, nestedGrid)).toEqual([
+      {
+        entryId: "entry.11",
+        message: 'Missing required answer for question "Grid" (entry.11)',
+      },
+    ]);
+  });
+
+  it("skips a required file_upload question (anonymous uploads are impossible)", () => {
+    const schema = parseFormData(loadFixture("file-upload"));
+    expect(
+      schema.questions.some((question) => {
+        return question.type === "file_upload" && question.required;
+      }),
+    ).toBe(true);
+    expect(validateValues({}, schema)).toEqual({ ok: true });
+  });
 
   it("fixture: a complete flat value set validates; an empty one reports every required row", () => {
     const schema = parseFormData(loadFixture("all-question-types"));

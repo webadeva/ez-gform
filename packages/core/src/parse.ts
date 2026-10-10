@@ -213,10 +213,15 @@ export const parseFormData = (
       }
       case "linear_scale": {
         const options = mapOptions(firstSub.options) ?? [];
-        const first = options[0]?.value;
-        const last = options[options.length - 1]?.value;
-        const min = first !== undefined ? Number(first) : Number.NaN;
-        const max = last !== undefined ? Number(last) : Number.NaN;
+        const first = options[0];
+        const last = options[options.length - 1];
+        if (!first || !last) {
+          throw new ParseError(
+            `parseFormData: linear scale question ${String(id)} ("${entryTitle}") has no options`,
+          );
+        }
+        const min = Number(first.value);
+        const max = Number(last.value);
         const labels = Array.isArray(firstSub.extra) ? firstSub.extra : [];
         question.scale = {
           min,
@@ -271,7 +276,7 @@ export const parseFormData = (
   }
 
   return {
-    formId: formId ?? "",
+    formId,
     title,
     description,
     questions,

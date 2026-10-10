@@ -441,19 +441,30 @@ describe("ez-gform CLI", () => {
     });
 
     it("--data @file with valid JSON is read, then fails validation (exit 2)", async () => {
+      // all-question-types has required non-upload questions, so `{}` fails
+      // validation and nothing is ever fetched (file-upload's only required
+      // question is a file_upload, which validation skips).
       const file = join(dir, "empty.json");
       writeFileSync(file, "{}", "utf8");
-      const { code, stderr, stdout } = await run(submitArgs(`@${file}`));
+      const { code, stderr, stdout } = await run([
+        "submit",
+        FORM_ID,
+        "--json-input",
+        fixturePath("all-question-types"),
+        "--data",
+        `@${file}`,
+      ]);
       expect(code).toBe(2);
       expect(stdout).toBe("");
       expect(stderr).toContain("Validation failed");
-      expect(stderr).toContain("entry.83696370");
+      expect(stderr).toContain("entry.2028813558");
     });
 
     it("an invalid form argument is rejected after validation, before any fetch", async () => {
-      // file-upload only requires entry.83696370, so this passes validation;
-      // normalizeFormId then throws on the garbage positional before
-      // submitForm is called, so nothing is sent.
+      // file-upload's only required question is a file_upload, which
+      // validation skips, so this passes validation; normalizeFormId then
+      // throws on the garbage positional before submitForm is called, so
+      // nothing is sent.
       const { code, stderr, stdout } = await run([
         "submit",
         "not a form id",

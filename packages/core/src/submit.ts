@@ -81,12 +81,12 @@ export const submitForm = async (
   values: FormValues,
   opts: SubmitOptions = {},
 ): Promise<SubmitResult> => {
-  const { formResponse } = formUrls(formId);
-  const body = buildSubmitBody(formId, values, opts.schema);
   const doFetch = opts.fetch ?? fetch;
   const mode = opts.mode ?? "no-cors";
 
   try {
+    const { formResponse } = formUrls(formId);
+    const body = buildSubmitBody(formId, values, opts.schema);
     const response = await doFetch(formResponse, {
       method: "POST",
       mode,

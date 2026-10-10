@@ -20,6 +20,11 @@ describe("ParseError", () => {
   it("has no cause unless one is given", () => {
     expect(new ParseError("x").cause).toBeUndefined();
   });
+
+  it("carries the cause passed via ErrorOptions", () => {
+    const cause = new SyntaxError("boom");
+    expect(new ParseError("x", { cause }).cause).toBe(cause);
+  });
 });
 
 describe("ValidationError", () => {

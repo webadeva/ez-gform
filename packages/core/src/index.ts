@@ -1,4 +1,4 @@
-export const VERSION = "0.1.0";
+export const VERSION: string = __EZ_GFORM_VERSION__;
 
 export { encodeValues, validateValues } from "./encode.js";
 export { ParseError, ValidationError } from "./errors.js";

@@ -62,7 +62,19 @@ describe("extractPublicLoadData", () => {
     );
   });
 
-  // TODO(bug): ParseError should carry the original JSON.parse SyntaxError as its cause (extract.ts currently drops it).
+  it("keeps the original JSON.parse SyntaxError as the ParseError cause", () => {
+    let caught: unknown;
+    try {
+      extractPublicLoadData("var FB_PUBLIC_LOAD_DATA_ = [1,];");
+    } catch (error) {
+      caught = error;
+    }
+    const { cause } = caught as ParseError;
+    expect(cause).toBeInstanceOf(SyntaxError);
+    expect((caught as ParseError).message).toContain(
+      (cause as SyntaxError).message,
+    );
+  });
 
   it("respects escaped quotes and escaped backslashes inside strings", () => {
     const html =

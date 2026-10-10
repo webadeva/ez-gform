@@ -59,6 +59,9 @@ const appendChoiceItem = (
   item: string | OtherValue,
 ): void => {
   if (isOtherValue(item)) {
+    // An Other with empty text is not an answer; whitespace-only is sent
+    // verbatim, matching appendScalar.
+    if (item.other === "") return;
     params.append(entryId, OTHER_SENTINEL);
     appendScalar(params, `${entryId}.other_option_response`, item.other);
   } else {
@@ -143,7 +146,15 @@ const encodeOne = (
   appendGridMap(params, value);
 };
 
-/** Validates `values` against a parsed `FormSchema`: unknown entry ids and missing required questions. */
+/**
+ * Validates `values` against a parsed `FormSchema`: unknown entry ids and
+ * missing required questions. A required grid row is satisfied by either a flat
+ * `values[rowEntryId]` or a nested `values[question.entryId][rowEntryId]` map
+ * (both shapes `encodeValues` accepts). An Other value with empty text
+ * (`{ other: "" }`) does not count as an answer. `file_upload` questions are
+ * skipped: uploads need a Google sign-in, which anonymous submission cannot
+ * provide, so a required upload could never be satisfied.
+ */
 export const validateValues = (
   values: FormValues,
   schema: FormSchema,
@@ -166,7 +177,17 @@ export const validateValues = (
   }
 
   for (const q of schema.questions) {
-    if (!q.required) continue;
+    if (!q.required || q.type === "file_upload") continue;
+    const nested = values[q.entryId];
+    const nestedMap =
+      typeof nested === "object" &&
+      nested !== null &&
+      !Array.isArray(nested) &&
+      !isOtherValue(nested) &&
+      !isDateValue(nested) &&
+      !isTimeValue(nested)
+        ? (nested as Record<string, unknown>)
+        : undefined;
     const idsToCheck =
       q.rows && q.rows.length > 0
         ? q.rows.map((r) => {
@@ -174,12 +195,17 @@ export const validateValues = (
           })
         : [q.entryId];
     for (const id of idsToCheck) {
-      const v = values[id];
+      const v: unknown =
+        values[id] ?? (q.rows?.length ? nestedMap?.[id] : undefined);
       const isEmpty =
         v === undefined ||
         v === null ||
         v === "" ||
-        (Array.isArray(v) && v.length === 0) ||
+        (Array.isArray(v) &&
+          v.every((i) => {
+            return isOtherValue(i) && i.other === "";
+          })) ||
+        (isOtherValue(v) && v.other === "") ||
         (typeof v === "object" &&
           !Array.isArray(v) &&
           Object.keys(v).length === 0);

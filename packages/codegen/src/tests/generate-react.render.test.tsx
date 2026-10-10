@@ -261,7 +261,7 @@ describe("generated React component, rendered against the real @ez-gform/react",
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("renders the file-upload note and refuses to submit while the upload is required", async () => {
+  it("renders the file-upload note and submits the other answers; validation skips the required upload", async () => {
     const user = userEvent.setup();
     const fetchMock = mockFetch();
     render(<FileUploadForm />);
@@ -270,16 +270,13 @@ describe("generated React component, rendered against the real @ez-gform/react",
     await user.type(within(block("Name")).getByRole("textbox"), "Ada");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
-    // TODO(bug): the upload question is required and the generated form has no
-    // control for it, so validation can never pass and the form is unsubmittable;
-    // the correct behaviour is to skip file_upload questions when validating
-    // or to render a way to proceed (generate-react.ts file_upload branch).
-    expect(await screen.findByText("Status: error")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Missing required answer for question "Upload question"/,
-      ),
-    ).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await screen.findByText("Status: sent")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = new URLSearchParams(
+      typeof init?.body === "string" ? init.body : "",
+    );
+    expect(body.get("entry.1038595481")).toBe("Ada");
+    expect(body.has("entry.83696370")).toBe(false);
   });
 });

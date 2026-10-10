@@ -748,14 +748,28 @@ describe("parseFormData — fallbacks on mutated live fixture", () => {
     expect(first?.description).toBe("Retitled description");
   });
 
-  it("yields NaN min/max for a linear scale with no options", () => {
+  it("throws a ParseError naming the question for a linear scale with no options", () => {
     const data = cloneFixture();
     subQuestions(data, "Scale without labels")[0]![1] = null;
-    const q = parseFormData(data).questions.find((x) => {
-      return x.title === "Scale without labels";
-    });
-    expect(q?.scale?.min).toBeNaN();
-    expect(q?.scale?.max).toBeNaN();
+    expect(() => {
+      return parseFormData(data);
+    }).toThrow(
+      /linear scale question .* \("Scale without labels"\) has no options/,
+    );
+    subQuestions(data, "Scale without labels")[0]![1] = [];
+    expect(() => {
+      return parseFormData(data);
+    }).toThrow(ParseError);
+  });
+
+  it("uses an empty title when entry[1] is not a string", () => {
+    const data = cloneFixture();
+    findEntry(data, "Short answer required")[1] = 42;
+    expect(
+      parseFormData(data).questions.some((x) => {
+        return x.id === "1766845390" && x.title === "";
+      }),
+    ).toBe(true);
   });
 
   it("uses an empty label for a grid row with no label", () => {
